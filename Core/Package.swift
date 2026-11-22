@@ -12,6 +12,11 @@ var targets: [Target] = [
         name: "ReyForgeCore",
         path: "Sources/ReyForgeCore"
     ),
+    .executableTarget(
+        name: "rf-debug",
+        dependencies: ["ReyForgeCore"],
+        path: "Sources/rf-debug"
+    ),
     .testTarget(
         name: "ReyForgeCoreTests",
         dependencies: ["ReyForgeCore"],

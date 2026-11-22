@@ -114,6 +114,15 @@ public struct RFSCompiler {
             changes.append(ChangeRecord(.navigation, "Added \(project.screens[index].name) to the tab bar", screenID: screenID))
         }
         if flags.contains("large") { project.screens[index].largeTitle = true }
+        if let appear = line.attributes["onappear"] ?? line.attributes["onload"] {
+            project.screens[index].onAppear = compileActions(appear)
+        }
+        if let refresh = line.attributes["onrefresh"] {
+            project.screens[index].refreshActions = compileActions(refresh)
+        }
+        if let search = line.attributes["search"] {
+            project.screens[index].searchBinding = project.ensureVariable(search, type: .text)
+        }
         if flags.contains("home") || flags.contains("initial") || flags.contains("start") {
             project.navigation.initialScreenID = screenID
         }
@@ -386,7 +395,7 @@ public struct RFSCompiler {
 
     func imageSource(_ raw: String) -> String {
         let t = raw.trimmingCharacters(in: .whitespaces)
-        if t.hasPrefix("http") || t.hasPrefix("asset:") || t.hasPrefix("symbol:") { return t }
+        if t.hasPrefix("http") || t.hasPrefix("asset:") || t.hasPrefix("symbol:") || Template.containsTemplate(t) { return t }
         if t.contains("."), !t.contains(" "), SymbolResolver.isKnown(t) { return "symbol:" + t }
         // A description: use a deterministic photo for the keyword.
         let seed = BundleID.slug(t).prefix(24)
@@ -460,6 +469,8 @@ public struct RFSCompiler {
         let propKeys = Set(spec.properties.map { $0.key })
         func setProp(_ key: String, _ raw: String) {
             guard let ps = spec.properties.first(where: { $0.key == key }) else { return }
+            // Dynamic values are evaluated at runtime; keep them verbatim.
+            if Template.containsTemplate(raw) { node.props[key] = .string(raw); return }
             switch ps.kind {
             case .number: if let n = Value.parseNumber(raw) { node.props[key] = .number(n) }
             case .bool: node.props[key] = .bool(Value.string(raw).boolValue)
@@ -526,10 +537,15 @@ public struct RFSCompiler {
                 } else if node.type == .picker, key == "items" {
                     node.props["options"] = list(value)
                 } else if spec.supportsRepeat || spec.isContainer {
-                    let v = value.replacingOccurrences(of: "{{", with: "").replacingOccurrences(of: "}}", with: "")
-                    let name = Variable.sanitize(v)
-                    node.repeatSource = name
-                    project.ensureVariable(name, type: .list, initial: .array([]))
+                    let v = value.replacingOccurrences(of: "{{", with: "").replacingOccurrences(of: "}}", with: "").trimmingCharacters(in: .whitespaces)
+                    if v.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) {
+                        let name = Variable.sanitize(v)
+                        node.repeatSource = name
+                        project.ensureVariable(name, type: .list, initial: .array([]))
+                    } else {
+                        // An expression such as filter(items, query).
+                        node.repeatSource = v
+                    }
                 } else if propKeys.contains("data") { setProp("data", value) }
             case "visible", "if", "show", "when", "visibleif": node.visibleIf = value
             case "bind", "binding", "var", "variable", "model", "state":
@@ -623,6 +639,22 @@ public struct RFSCompiler {
             case "size":
                 applySize(value, to: &node)
             case "on", "event": break
+            case "ontap", "onclick", "onpress", "onchange", "ondelete", "onswipe", "onappear", "onload", "onlongpress", "onhold", "onsubmit", "onrefresh":
+                let ev: EventKind
+                switch key {
+                case "onchange": ev = .change
+                case "ondelete", "onswipe": ev = .delete
+                case "onappear", "onload": ev = .appear
+                case "onlongpress", "onhold": ev = .longPress
+                case "onsubmit": ev = .submit
+                case "onrefresh": ev = .refresh
+                default: ev = .tap
+                }
+                let compiled = compileActions(value)
+                if !compiled.isEmpty {
+                    node.events.removeAll { $0.event == ev }
+                    node.events.append(EventHandler(event: ev, actions: compiled))
+                }
             default:
                 if propKeys.contains(key) { setProp(key, value) }
                 else if let match = spec.properties.first(where: { $0.key.lowercased() == key }) { setProp(match.key, value) }
@@ -856,7 +888,8 @@ public struct RFSCompiler {
             case .array: kind = .list
             case .object: kind = .object
             default:
-                kind = valueText.contains(where: { "+-*/".contains($0) }) && !valueText.contains("\"") ? .number : .text
+                if ["{{item}}", "{{$response}}", "{{$result}}", "{{ item }}"].contains(valueText) { kind = .object }
+                else { kind = valueText.contains(where: { "+-*/".contains($0) }) && !valueText.contains("\"") && !valueText.contains("{{") ? .number : .text }
             }
             let v = project.ensureVariable(name, type: project.variable(named: Variable.sanitize(name))?.type ?? kind, initial: nil)
             noteVariable(v)
@@ -884,6 +917,13 @@ public struct RFSCompiler {
             guard !args.isEmpty else { return nil }
             let v = project.ensureVariable(args[0], type: .list, initial: .array([])); noteVariable(v)
             return .remove(v, index: args.count > 1 ? args[1] : "{{index}}")
+        case "toggleitem", "complete", "tick":
+            guard !args.isEmpty else { return nil }
+            let v = project.ensureVariable(args[0], type: .list, initial: .array([])); noteVariable(v)
+            let field = args.count > 1 ? args[1] : "done"
+            var a = Action(kind: .updateItem)
+            a.params = ["variable": .string(v), "index": "{{index}}", "field": .string(field), "value": .string("{{!item.\(field)}}")]
+            return a
         case "clear", "empty":
             let v = project.ensureVariable(first(), type: .list, initial: .array([])); noteVariable(v)
             return .clear(v)

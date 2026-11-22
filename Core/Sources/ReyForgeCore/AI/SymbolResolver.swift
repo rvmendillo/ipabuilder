@@ -75,7 +75,7 @@ public enum SymbolResolver {
         "graduationcap.circle", "pencil.and.outline", "list.clipboard", "clipboard", "note.text", "square.text.square", "doc.badge.plus",
         "envelope.badge", "person.crop.circle.badge.checkmark", "person.crop.circle.badge.plus", "person.2.circle", "hands.clap",
         "face.smiling", "face.smiling.inverse", "hand.point.up.left", "rosette", "checkmark.rectangle", "cart.circle", "bag.circle",
-        "giftcard", "safari", "star.bubble", "xmark.octagon.fill", "network", "party.popper", "wrench.fill", "square.stack", "wallet.pass", "wallet.pass.fill", "chart.line.flattrend.xyaxis", "chart.dots.scatter", "arrow.up.forward.app",
+        "giftcard", "at", "1.circle.fill", "2.circle.fill", "3.circle.fill", "4.circle.fill", "5.circle.fill", "6.circle.fill", "7.circle.fill", "8.circle.fill", "9.circle.fill", "10.circle.fill", "safari", "star.bubble", "xmark.octagon.fill", "network", "party.popper", "wrench.fill", "square.stack", "wallet.pass", "wallet.pass.fill", "chart.line.flattrend.xyaxis", "chart.dots.scatter", "arrow.up.forward.app",
     ]
 
     /// Word → symbol synonyms for invented or descriptive names.
@@ -141,7 +141,7 @@ public enum SymbolResolver {
         "streak": "flame.fill", "hot": "flame.fill", "calories": "flame.fill", "calorie": "flame.fill", "burn": "flame.fill",
         "water": "drop.fill", "drop": "drop.fill", "droplet": "drop.fill", "hydration": "drop.fill", "honey": "drop.fill", "rain": "cloud.rain.fill",
         "leaf": "leaf.fill", "plant": "leaf.fill", "plants": "leaf.fill", "garden": "leaf.fill", "nature": "leaf.fill", "eco": "leaf.fill",
-        "tree": "tree.fill", "forest": "tree.fill", "bug": "ladybug.fill", "pest": "ladybug.fill", "bee": "hexagon.fill", "hive": "hexagon.fill",
+        "tree": "tree.fill", "forest": "tree.fill", "bug": "ladybug.fill", "pest": "ladybug.fill", "bee": "hexagon.fill", "bees": "hexagon.fill", "beekeeping": "hexagon.fill", "beekeeper": "hexagon.fill", "apiary": "hexagon.fill", "hive": "hexagon.fill",
         "hives": "hexagon.fill", "pet": "pawprint.fill", "pets": "pawprint.fill", "dog": "pawprint.fill", "cat": "pawprint.fill", "paw": "pawprint.fill",
         "animal": "pawprint.fill", "bird": "bird.fill", "fish": "fish.fill",
         "sun": "sun.max.fill", "sunny": "sun.max.fill", "light": "sun.max", "lighting": "sun.max.fill", "moon": "moon.fill", "night": "moon.stars.fill",

@@ -110,9 +110,11 @@ public enum RFSParser {
         var inQuote = false
         var depth = 0
         var i = s.startIndex
+        var prev: Character = " "
         while i < s.endIndex {
             let c = s[i]
-            if c == "\"" || c == "“" || c == "”" { inQuote.toggle() }
+            defer { prev = c }
+            if (c == "\"" && prev != "\\") || c == "“" || c == "”" { inQuote.toggle() }
             else if !inQuote {
                 if c == "{" || c == "[" { depth += 1 }
                 else if c == "}" || c == "]" { depth = max(0, depth - 1) }
@@ -134,7 +136,10 @@ public enum RFSParser {
         var cur = ""
         var inQuote = false
         var depth = 0
+        var escaped = false
         for c in s {
+            if escaped { cur.append(c); escaped = false; continue }
+            if c == "\\" && inQuote { cur.append(c); escaped = true; continue }
             if c == "“" || c == "”" {
                 inQuote.toggle(); cur.append("\""); continue
             }
@@ -177,8 +182,10 @@ public enum RFSParser {
         var cur = ""
         var inQuote = false
         var depth = 0
+        var prev: Character = " "
         for c in s {
-            if c == "\"" || c == "“" || c == "”" { inQuote.toggle() }
+            defer { prev = c }
+            if (c == "\"" && prev != "\\") || c == "“" || c == "”" { inQuote.toggle() }
             if !inQuote {
                 if c == "{" || c == "[" { depth += 1 }
                 if c == "}" || c == "]" { depth = max(0, depth - 1) }
@@ -201,8 +208,11 @@ public enum RFSParser {
         guard !text.isEmpty else { return nil }
         var block: String?
         var elseBlock: String?
-        // Extract { ... } blocks for if/confirm.
-        if let open = text.firstIndex(of: "{"), let close = matchingBrace(text, from: open) {
+        let verbWord = text.prefix(while: { !$0.isWhitespace }).lowercased()
+        let blockVerbs: Set<String> = ["if", "when", "confirm", "ask", "validate", "require", "check", "alert", "get", "fetch", "load", "request", "api", "post", "put", "patch"]
+        // Extract { ... } blocks for if/confirm/validate/api — but only the block that follows the arguments,
+        // never a JSON payload (e.g. `add items {"title": "x"}`).
+        if blockVerbs.contains(verbWord), let open = blockStart(in: text), let close = matchingBrace(text, from: open) {
             block = String(text[text.index(after: open)..<close])
             var rest = String(text[text.index(after: close)...]).trimmingCharacters(in: .whitespaces)
             if rest.lowercased().hasPrefix("else") {
@@ -221,13 +231,34 @@ public enum RFSParser {
         return ParsedAction(verb: verb, args: Array(tokens.dropFirst()), block: block, elseBlock: elseBlock)
     }
 
+    /// The first "{" outside quotes that starts an action block (preceded by a space, not part of JSON like body={...}).
+    static func blockStart(in s: String) -> String.Index? {
+        var inQuote = false
+        var prev: Character = " "
+        var i = s.startIndex
+        while i < s.endIndex {
+            let c = s[i]
+            if c == "\"" && prev != "\\" { inQuote.toggle() }
+            if !inQuote && c == "{" && (prev == " " || prev == "}") {
+                // A block contains actions; JSON starts with a quoted key.
+                let after = s[s.index(after: i)...].trimmingCharacters(in: .whitespaces)
+                if !after.hasPrefix("\"") { return i }
+            }
+            prev = c
+            i = s.index(after: i)
+        }
+        return nil
+    }
+
     static func matchingBrace(_ s: String, from open: String.Index) -> String.Index? {
         var depth = 0
         var inQuote = false
         var i = open
+        var prev: Character = " "
         while i < s.endIndex {
             let c = s[i]
-            if c == "\"" { inQuote.toggle() }
+            defer { prev = c }
+            if c == "\"" && prev != "\\" { inQuote.toggle() }
             if !inQuote {
                 if c == "{" { depth += 1 }
                 if c == "}" { depth -= 1; if depth == 0 { return i } }
