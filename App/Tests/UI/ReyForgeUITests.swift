@@ -133,9 +133,14 @@ final class ReyForgeUITests: XCTestCase {
         let prop = el("prop.text")
         XCTAssertTrue(prop.waitForExistence(timeout: 5))
         prop.tap()
-        prop.clearAndType("Inspector text")
-        XCTAssertTrue(anyText("Inspector text").waitForExistence(timeout: 5))
+        prop.typeText("Inspector ")
+        // The canvas updates live while typing in the inspector.
+        let edited = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Inspector '")).firstMatch
+        XCTAssertTrue(edited.waitForExistence(timeout: 5), "canvas shows the edited text")
+        shot("06a-inspector-edit")
+        el("inspector.name").swipeDown() // hide the keyboard
         let tabs = el("inspector.tabs")
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
         tabs.buttons["Style"].tap()
         shot("06-inspector-style")
         tabs.buttons["Layout"].tap()
