@@ -44,6 +44,8 @@ targets:
       path: App/Widget/Info.plist
       properties:
         CFBundleDisplayName: ReyForge Widget
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -67,6 +69,8 @@ targets:
       path: App/Runtime/Info.plist
       properties:
         CFBundleDisplayName: ReyForge App
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true
         UILaunchScreen: {}
         UIApplicationSupportsIndirectInputEvents: true
@@ -124,6 +128,8 @@ targets:
       path: App/Builder/Info.plist
       properties:
         CFBundleDisplayName: ReyForge
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true
         UILaunchScreen:
           UIColorName: LaunchBackground
