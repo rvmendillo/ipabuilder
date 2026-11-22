@@ -138,6 +138,7 @@ final class ExpressionTests: XCTestCase {
     }
 }
 
+@MainActor
 final class MockHost: RuntimeHost {
     var events: [String] = []
     var alertChoice = 1
@@ -166,6 +167,7 @@ final class MockHTTP: HTTPClient {
     }
 }
 
+@MainActor
 final class RuntimeTests: XCTestCase {
     func makeRunner() -> (ActionRunner, MockHost, MockHTTP) {
         var project = Project(name: "Test")

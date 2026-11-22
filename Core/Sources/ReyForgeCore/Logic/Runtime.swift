@@ -163,7 +163,8 @@ public final class URLSessionHTTPClient: HTTPClient {
 
 // MARK: - Host
 
-/// UI side effects the action runner needs. The SwiftUI runtime implements this.
+/// UI side effects the action runner needs. The SwiftUI runtime implements this on the main actor.
+@MainActor
 public protocol RuntimeHost: AnyObject {
     func navigate(to screenID: String, style: String)
     func goBack()
@@ -222,6 +223,8 @@ public enum ValueResolver {
 
 // MARK: - Action runner
 
+/// Executes action flows. Main-actor isolated so state and UI changes never race; network calls suspend off the main thread.
+@MainActor
 public final class ActionRunner {
     public let state: StateStore
     public weak var host: RuntimeHost?

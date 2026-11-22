@@ -117,7 +117,7 @@ final class RFSCompilerTests: XCTestCase {
         XCTAssertNotNil(p.screen(named: "Profile"))
     }
 
-    func testCounterLogicRunsEndToEnd() async {
+    @MainActor func testCounterLogicRunsEndToEnd() async {
         let script = """
         VAR count number 0
         TEXT "Taps: {{count}}" style=title

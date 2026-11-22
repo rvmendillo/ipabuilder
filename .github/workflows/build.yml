@@ -1,0 +1,258 @@
+name: Build ReyForge
+
+# Builds, tests and packages ReyForge on every push.
+# - Core (logic, AI agent, templates, IPA assembly) is tested on Linux and macOS.
+# - The iOS app is built with Xcode, unit + UI tested on the iOS Simulator, and packaged as IPAs:
+#     ReyForge-<version>.ipa       full build with the built-in on-device model (Qwen3.5 2B, Apache-2.0)
+#     ReyForge-<version>-lite.ipa  without the bundled model (download models in-app)
+# - If signing secrets are configured, a signed IPA is produced with YOUR certificate.
+# - Pushes to the default branch publish a rolling "nightly" release that ReyForge's in-app
+#   updater installs (re-signed on-device with your certificate). Tags v* publish a full release.
+#
+# Optional repository secrets (Settings → Secrets and variables → Actions):
+#   SIGNING_P12_BASE64      base64 of your .p12 (certificate + private key)
+#   SIGNING_P12_PASSWORD    its password
+#   SIGNING_PROFILE_BASE64  base64 of your .mobileprovision
+#   SIGNING_BUNDLE_ID       (optional) bundle id to sign as
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+    paths-ignore: ["**.md", "docs/**"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a release with the IPAs"
+        type: boolean
+        default: false
+      run_ui_tests:
+        description: "Run UI tests"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MODEL_FILE: Qwen3.5-2B-Q4_K_M.gguf
+
+jobs:
+  core-linux:
+    name: Core tests (Linux)
+    runs-on: ubuntu-latest
+    container: swift:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      - name: Test ReyForgeCore
+        working-directory: Core
+        run: swift test 2>&1 | tail -n 60
+
+  ios:
+    name: iOS build, tests & IPA
+    runs-on: macos-26
+    timeout-minutes: 120
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          ls -d /Applications/Xcode*.app || true
+          XCODE="$(ls -d /Applications/Xcode*.app | grep -v -i beta | sort -V | tail -1)"
+          [ -n "$XCODE" ] || XCODE="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          xcrun simctl list runtimes | tail -n 8
+          sw_vers
+
+      - name: Version
+        id: version
+        run: |
+          BASE="$(grep -m1 'MARKETING_VERSION' project.yml | sed -E 's/.*"([0-9.]+)".*/\1/')"
+          echo "version=$BASE" >> "$GITHUB_OUTPUT"
+          echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "ReyForge $BASE ($GITHUB_RUN_NUMBER)"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen || brew upgrade xcodegen || true
+
+      - name: Cache llama.cpp XCFramework
+        uses: actions/cache@v4
+        with:
+          path: Vendor
+          key: llama-xcframework-${{ hashFiles('scripts/fetch-llama.sh') }}-v1
+
+      - name: Fetch llama.cpp XCFramework
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: scripts/fetch-llama.sh Vendor && cat Vendor/llama.version
+
+      - name: Cache built-in model
+        uses: actions/cache@v4
+        with:
+          path: App/Builder/Resources/Models/${{ env.MODEL_FILE }}
+          key: model-${{ env.MODEL_FILE }}-v1
+
+      - name: Fetch built-in model
+        run: scripts/fetch-model.sh App/Builder/Resources/Models
+
+      - name: Core tests (macOS)
+        working-directory: Core
+        run: swift test 2>&1 | tail -n 40
+
+      - name: Generate Xcode project
+        run: |
+          sed -i '' "s/CURRENT_PROJECT_VERSION: \"1\"/CURRENT_PROJECT_VERSION: \"${{ steps.version.outputs.build }}\"/" project.yml
+          xcodegen generate
+
+      - name: Resolve packages
+        run: xcodebuild -resolvePackageDependencies -project ReyForge.xcodeproj -scheme ReyForge -clonedSourcePackagesDirPath build/SourcePackages
+
+      - name: Pick simulator
+        id: sim
+        run: |
+          UDID="$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)["devices"]
+          best=None
+          for rt,devs in d.items():
+              if "iOS" not in rt: continue
+              for x in devs:
+                  if x["name"].startswith("iPhone") and "Pro" in x["name"] and "Max" not in x["name"]:
+                      key=(rt, x["name"])
+                      if best is None or key>best[0]: best=(key,x["udid"])
+          print(best[1] if best else "")')"
+          [ -n "$UDID" ] || UDID="$(xcrun simctl list devices available | grep -m1 -E 'iPhone' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl list devices available | grep "$UDID"
+
+      - name: Build for testing (Simulator)
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project ReyForge.xcodeproj -scheme ReyForge -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath build/SourcePackages \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO \
+            2>&1 | tee build/build-sim.log | grep -E "error:|warning: .*ReyForge|BUILD|\*\*" || true
+          grep -q "TEST BUILD SUCCEEDED\|BUILD SUCCEEDED" build/build-sim.log || { grep -E "error:" -A3 build/build-sim.log | head -n 200; exit 1; }
+
+      - name: Unit tests (Simulator)
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project ReyForge.xcodeproj -scheme ReyForge \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath build/SourcePackages \
+            -only-testing:ReyForgeTests -resultBundlePath build/UnitTests.xcresult \
+            2>&1 | tee build/unit-tests.log | grep -E "Test Case|error:|passed|failed|\*\*" | tail -n 150
+
+      - name: UI tests (Simulator)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_ui_tests }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project ReyForge.xcodeproj -scheme ReyForge \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath build/SourcePackages \
+            -only-testing:ReyForgeUITests -resultBundlePath build/UITests.xcresult \
+            2>&1 | tee build/ui-tests.log | grep -E "Test Case|error:|passed|failed|\*\*" | tail -n 150
+
+      - name: Export test screenshots
+        if: always()
+        run: |
+          mkdir -p build/screenshots
+          for r in build/UITests.xcresult build/UnitTests.xcresult; do
+            [ -d "$r" ] || continue
+            xcrun xcresulttool export attachments --path "$r" --output-path build/screenshots/$(basename "$r" .xcresult) 2>/dev/null || true
+          done
+          find build/screenshots -type f | head -n 80
+
+      - name: Build for device (unsigned Release)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project ReyForge.xcodeproj -scheme ReyForge -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build/DerivedDataDevice -clonedSourcePackagesDirPath build/SourcePackages \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            2>&1 | tee build/build-device.log | grep -E "error:|BUILD|\*\*" || true
+          grep -q "BUILD SUCCEEDED" build/build-device.log || { grep -E "error:" -A3 build/build-device.log | head -n 200; exit 1; }
+          APP="build/DerivedDataDevice/Build/Products/Release-iphoneos/ReyForge.app"
+          ls -la "$APP" "$APP/Frameworks" || true
+          unzip -l "$APP/RuntimeTemplate.zip" | tail -n 3
+
+      - name: Package IPAs
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          APP="build/DerivedDataDevice/Build/Products/Release-iphoneos/ReyForge.app"
+          scripts/package-ipa.sh "$APP" "dist/ReyForge-$V-unsigned.ipa"
+          scripts/package-ipa.sh "$APP" "dist/ReyForge-$V-lite-unsigned.ipa" --lite
+          ls -la dist
+
+      - name: Sign with your certificate
+        id: sign
+        env:
+          P12: ${{ secrets.SIGNING_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+          PROFILE: ${{ secrets.SIGNING_PROFILE_BASE64 }}
+          BUNDLE_ID: ${{ secrets.SIGNING_BUNDLE_ID }}
+        run: |
+          if [ -z "$P12" ] || [ -z "$PROFILE" ]; then
+            echo "No signing secrets configured — skipping (install via ReyForge's in-app updater or sign on-device)."
+            echo "signed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          V="${{ steps.version.outputs.version }}"
+          mkdir -p "$RUNNER_TEMP/sign"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/sign/cert.p12"
+          echo "$PROFILE" | base64 --decode > "$RUNNER_TEMP/sign/profile.mobileprovision"
+          scripts/sign-ipa.sh "dist/ReyForge-$V-lite-unsigned.ipa" "dist/ReyForge-$V-lite-signed.ipa" "$RUNNER_TEMP/sign/cert.p12" "$P12_PASSWORD" "$RUNNER_TEMP/sign/profile.mobileprovision" "$BUNDLE_ID"
+          scripts/sign-ipa.sh "dist/ReyForge-$V-unsigned.ipa" "dist/ReyForge-$V-signed.ipa" "$RUNNER_TEMP/sign/cert.p12" "$P12_PASSWORD" "$RUNNER_TEMP/sign/profile.mobileprovision" "$BUNDLE_ID"
+          rm -rf "$RUNNER_TEMP/sign"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload IPAs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReyForge-IPAs
+          path: dist/*.ipa
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReyForge-test-results
+          path: |
+            build/*.log
+            build/screenshots
+          retention-days: 14
+
+      - name: Publish release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) || (github.event_name == 'workflow_dispatch' && inputs.release) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          B="${{ steps.version.outputs.build }}"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"; TITLE="ReyForge $V"; PRE=""
+          else
+            TAG="nightly"; TITLE="ReyForge $V nightly ($B)"; PRE="--prerelease"
+            gh release delete nightly --yes --cleanup-tag || true
+          fi
+          NOTES="ReyForge $V build $B — $(git log -1 --pretty=%s)
+
+          Install: open ReyForge → Settings → Updates (re-signs with your certificate on-device), or sideload the signed IPA.
+          *-unsigned.ipa can be signed with any signer (ReyForge, ESign, Feather, Sideloadly). Lite builds download the AI model in-app."
+          gh release create "$TAG" dist/*.ipa --title "$TITLE" --notes "$NOTES" --target "$GITHUB_SHA" $PRE
