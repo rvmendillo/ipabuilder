@@ -1,0 +1,28 @@
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+build/
+*.xcodeproj/
+!App/*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xcresult/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Generated at build time by scripts/ and CI
+Vendor/
+App/Builder/Resources/Models/*.gguf
+App/Builder/Resources/RuntimeTemplate.zip
+Core/Sources/llama/include/
+
+# macOS
+.DS_Store
+
+# Secrets (never commit signing material)
+*.p12
+*.mobileprovision
+*.cer
+signing/
