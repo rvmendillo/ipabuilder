@@ -46,6 +46,8 @@ public struct RFSCompiler {
     var lastNodeID: String?
     var createdContainers: Set<String> = []
     var focusScreenID: String?
+    /// Placeholder screens created for navigation targets; a later SCREEN statement replaces their content.
+    var stubScreens: Set<String> = []
 
     public static func compile(_ script: String, into project: Project, context: EditorContext = EditorContext()) -> CompileResult {
         var c = RFSCompiler(project: project, context: context)
@@ -79,6 +81,9 @@ public struct RFSCompiler {
             case .nav: setNavigation(line)
             case .say: reply = ([reply].compactMap { $0 } + [line.positional.first ?? line.tokens.joined(separator: " ")]).joined(separator: "\n")
             case .component(let kw): addComponent(kw, line)
+            case .toolbar: addToolbarItem(line)
+            case .widget: configureWidget(line)
+            case .api: declareAPI(line)
             case .end, .comment: break
             }
         }
@@ -93,7 +98,11 @@ public struct RFSCompiler {
         var index: Int
         if let existing = project.screen(named: name), let i = project.screenIndex(id: existing.id) {
             index = i
-            if flags.contains("replace") || flags.contains("rebuild") {
+            if stubScreens.contains(existing.id) {
+                project.screens[i].root.children = []
+                stubScreens.remove(existing.id)
+                if let icon = line.attributes["icon"] { project.screens[i].icon = SymbolResolver.resolve(icon, fallback: project.screens[i].icon) }
+            } else if flags.contains("replace") || flags.contains("rebuild") {
                 project.screens[i].root.children = []
                 changes.append(ChangeRecord(.updatedScreen, "Rebuilt the \(existing.name) screen", screenID: existing.id))
             }
@@ -155,6 +164,7 @@ public struct RFSCompiler {
             Node(type: .text, props: ["text": .string("This is the \(title) screen. Ask ReyForge AI to design it, or drag components here.")], style: Style(foreground: "secondaryText")),
         ]
         project.screens.append(s)
+        stubScreens.insert(s.id)
         changes.append(ChangeRecord(.addedScreen, "Created the \(s.name) screen as a link target", screenID: s.id))
         return s.id
     }
@@ -663,6 +673,7 @@ public struct RFSCompiler {
         }
 
         for flag in flags {
+            if node.type == .shape, let kind = shapeKind(flag) { node.props["shape"] = .string(kind); continue }
             switch flag {
             case "bold": var f = node.style.font ?? FontSpec(); f.weight = "bold"; node.style.font = f
             case "semibold": var f = node.style.font ?? FontSpec(); f.weight = "semibold"; node.style.font = f
@@ -937,6 +948,11 @@ public struct RFSCompiler {
             let message = args.count > 1 ? args.last! : "Please check your input."
             let condition = args.count > 1 ? args.dropLast().joined(separator: " ") : joined
             return .validate(condition, message: message, then: compileActionList(p.block ?? ""))
+        case "callapi", "endpoint", "run":
+            var a = Action.api("", then: compileActionList(p.block ?? ""), otherwise: compileActionList(p.elseBlock ?? ""))
+            a.params["endpoint"] = .string(first())
+            a.params["url"] = ""
+            return a
         case "url", "link", "web", "browse", "safari": return .open(first())
         case "call", "phone": return .open(first().hasPrefix("tel:") ? first() : "tel:" + first().filter { $0.isNumber || $0 == "+" })
         case "email", "mail": return .open(first().hasPrefix("mailto:") ? first() : "mailto:" + first())
@@ -1110,6 +1126,59 @@ public struct RFSCompiler {
             project.navigation.style = .stack
             changes.append(ChangeRecord(.navigation, "Switched to stack navigation"))
         }
+    }
+
+    // MARK: Toolbar, widget, API
+
+    mutating func addToolbarItem(_ line: RFSLine) {
+        let si = ensureScreen()
+        var item = ToolbarItem()
+        item.title = line.positional.first ?? line.attributes["title"] ?? ""
+        item.icon = SymbolResolver.resolve(line.attributes["icon"] ?? (item.title.isEmpty ? "plus" : ""), fallback: item.title.isEmpty ? "plus" : "")
+        if let p = line.attributes["placement"], let pl = ToolbarItem.Placement(rawValue: p.lowercased()) { item.placement = pl }
+        else if line.flags.contains("leading") { item.placement = .leading } else if line.flags.contains("bottom") { item.placement = .bottom }
+        if let a = line.actions { item.actions = compileActions(a) }
+        project.screens[si].toolbar.append(item)
+        changes.append(ChangeRecord(.updatedScreen, "Added a toolbar button to \(project.screens[si].name)", screenID: project.screens[si].id))
+    }
+
+    mutating func configureWidget(_ line: RFSLine) {
+        var w = project.widget
+        w.enabled = !line.flags.contains("off")
+        for (k, v) in line.attributes {
+            switch k {
+            case "name": w.name = v
+            case "summary", "description": w.summary = v
+            case "title": w.title = v
+            case "subtitle": w.subtitle = v
+            case "value": w.value = v
+            case "symbol", "icon": w.symbol = SymbolResolver.resolve(v, fallback: "sparkles")
+            case "family", "size": w.family = WidgetConfig.Family(rawValue: v.lowercased()) ?? w.family
+            case "layout", "style": w.layout = WidgetConfig.Layout(rawValue: v.lowercased()) ?? w.layout
+            case "bg", "background": if let f = fill(v) { w.background = f }
+            case "color", "foreground": if let c = color(v) { w.foreground = ColorNames.hex(for: c) ?? c }
+            case "progress": w.progress = Value.parseNumber(v) ?? w.progress
+            case "items": w.items = v.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            case "screen", "link": w.deepLinkScreenID = project.screen(named: v)?.id
+            default: break
+            }
+        }
+        project.widget = w
+        changes.append(ChangeRecord(.brand, "Configured the Home Screen widget"))
+    }
+
+    mutating func declareAPI(_ line: RFSLine) {
+        let name = line.positional.first ?? line.attributes["name"] ?? "API"
+        var ep = project.apis.first { $0.name.lowercased() == name.lowercased() } ?? APIEndpoint(name: name, url: "")
+        if let u = line.attributes["url"] ?? line.positional.dropFirst().first { ep.url = u }
+        if let m = line.attributes["method"] { ep.method = m.uppercased() }
+        if let b = line.attributes["body"] { ep.body = b }
+        if let into = line.attributes["into"] { ep.resultVariable = project.ensureVariable(into, type: line.attributes["path"] == nil ? .object : .text) }
+        if let path = line.attributes["path"] { ep.resultPath = path }
+        for (k, v) in line.attributes where k.hasPrefix("header") { ep.headers[String(k.dropFirst(6)).trimmingCharacters(in: CharacterSet(charactersIn: ":_-"))] = v }
+        project.apis.removeAll { $0.id == ep.id }
+        project.apis.append(ep)
+        changes.append(ChangeRecord(.logic, "Saved API endpoint “\(name)”"))
     }
 
     // MARK: Edit & delete

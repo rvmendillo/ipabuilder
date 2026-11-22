@@ -9,7 +9,7 @@ import Foundation
 ///         STAT "Balance" "$12,450" icon=creditcard
 ///       BUTTON "Add" icon=plus style=prominent -> sheet "Add Item"
 public struct RFSLine: Hashable {
-    public enum Kind: Hashable { case screen, app, variable, edit, delete, nav, say, component(String), end, comment }
+    public enum Kind: Hashable { case screen, app, variable, edit, delete, nav, say, toolbar, widget, api, component(String), end, comment }
     public var kind: Kind
     public var indent: Int
     public var positional: [String]
@@ -33,6 +33,7 @@ public enum RFSParser {
         "NAV": .nav, "NAVIGATION": .nav,
         "SAY": .say, "REPLY": .say, "MESSAGE": .say,
         "END": .end, "DONE": .end,
+        "TOOLBAR": .toolbar, "WIDGET": .widget, "API": .api, "ENDPOINT": .api,
     ]
 
     public static func parse(_ script: String) -> [RFSLine] {
