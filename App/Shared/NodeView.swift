@@ -171,17 +171,26 @@ struct FrameModifier: ViewModifier {
     let style: Style
     let defaultAlignment: HAlign?
 
+    func maxWidth(fill: Bool) -> CGFloat? {
+        if fill { return .infinity }
+        if let m = style.maxWidth { return CGFloat(m) }
+        if let a = defaultAlignment, a != .leading { return .infinity }
+        return nil
+    }
+
     func body(content: Content) -> some View {
         let align = (style.alignment ?? defaultAlignment ?? .leading).frameAlignment
         let w: CGFloat? = style.width?.fixedValue.map { CGFloat($0) }
         let h: CGFloat? = style.height?.fixedValue.map { CGFloat($0) }
         let fillW = style.width == .fill
         let fillH = style.height == .fill
+        let minH: CGFloat? = style.minHeight.map { CGFloat($0) }
+        let maxW: CGFloat? = maxWidth(fill: fillW)
+        let maxH: CGFloat? = fillH ? CGFloat.infinity : nil
         content
             .frame(width: w, height: h, alignment: align)
-            .frame(minHeight: style.minHeight.map { CGFloat($0) }, alignment: align)
-            .frame(maxWidth: fillW ? .infinity : (style.maxWidth.map { CGFloat($0) } ?? (defaultAlignment != nil && defaultAlignment != .leading ? .infinity : nil)),
-                   maxHeight: fillH ? .infinity : nil, alignment: align)
+            .frame(minHeight: minH, alignment: align)
+            .frame(maxWidth: maxW, maxHeight: maxH, alignment: align)
     }
 }
 

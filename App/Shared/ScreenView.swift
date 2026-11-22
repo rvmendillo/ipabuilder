@@ -12,24 +12,22 @@ struct ScreenView: View {
         screen.root.children.contains { $0.type == .list || $0.type == .form } && screen.root.repeatSource == nil
     }
 
+    var screenFill: Fill {
+        if let bg = screen.background { return bg }
+        return Fill.solid(palette.dark ? palette.theme.darkBackground : palette.theme.background)
+    }
+
     var body: some View {
         let scope = store.scope()
         content(scope)
-            .background { palette.fill(screen.background ?? .solid(palette.dark ? palette.theme.darkBackground : palette.theme.background)).ignoresSafeArea() }
+            .background { palette.fill(screenFill).ignoresSafeArea() }
             .navigationTitle(Template.render(screen.title, scope: scope))
             .navigationBarTitleDisplayMode(screen.largeTitle ? .large : .inline)
             .toolbar(screen.showsNavigationBar ? .visible : .hidden, for: .navigationBar)
             .toolbar {
                 ForEach(screen.toolbar) { item in
-                    ToolbarItem(placement: placement(item.placement)) {
-                        Button {
-                            if store.mode == .design { design?.select("toolbar:" + item.id) } else { store.run(item.actions, scope: scope) }
-                        } label: {
-                            if item.title.isEmpty { Image(systemName: item.icon.isEmpty ? "plus" : item.icon) }
-                            else if item.icon.isEmpty { Text(item.title) }
-                            else { Label(item.title, systemImage: item.icon) }
-                        }
-                        .accessibilityIdentifier("toolbar.\(item.id)")
+                    SwiftUI.ToolbarItem(placement: placement(item.placement)) {
+                        ToolbarButton(item: item, scope: scope)
                     }
                 }
             }
@@ -105,6 +103,37 @@ struct ScreenView: View {
         case .leading: return .topBarLeading
         case .trailing: return .topBarTrailing
         case .bottom: return .bottomBar
+        }
+    }
+}
+
+/// A toolbar button of a screen; in the builder it opens the screen's toolbar settings.
+struct ToolbarButton: View {
+    let item: ScreenToolbarItem
+    let scope: Scope
+    @EnvironmentObject var store: RuntimeStore
+    @Environment(\.designHandler) var design
+
+    var body: some View {
+        Button(action: tapped) { label }
+            .accessibilityIdentifier("toolbar.\(item.id)")
+    }
+
+    func tapped() {
+        if store.mode == .design {
+            design?.select("toolbar:" + item.id)
+        } else {
+            store.run(item.actions, scope: scope)
+        }
+    }
+
+    @ViewBuilder var label: some View {
+        if item.title.isEmpty {
+            Image(systemName: item.icon.isEmpty ? "plus" : item.icon)
+        } else if item.icon.isEmpty {
+            Text(item.title)
+        } else {
+            Label(item.title, systemImage: item.icon)
         }
     }
 }

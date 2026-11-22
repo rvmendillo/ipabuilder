@@ -37,6 +37,11 @@ struct ColorField: View {
     let palette: ThemePalette
     var allowsNone = true
 
+    var tokenTitle: String {
+        guard let t = token else { return "Default" }
+        return t.hasPrefix("#") ? t.uppercased() : ColorTokens.title(t)
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             Text(title)
@@ -55,7 +60,7 @@ struct ColorField: View {
                 }
             } label: {
                 HStack(spacing: 6) {
-                    Text(token.map { $0.hasPrefix("#") ? $0.uppercased() : ColorTokens.title($0) } ?? "Default")
+                    Text(tokenTitle)
                         .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     Swatch(color: token.map { palette.color($0) } ?? .clear)
                 }

@@ -738,13 +738,13 @@ public enum ExpressionEngine {
 
     // MARK: Formatting
 
-    static let isoFormatter: ISO8601DateFormatter = {
+    public static let isoFormatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime]
         return f
     }()
 
-    static let isoFractional: ISO8601DateFormatter = {
+    public static let isoFractional: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return f

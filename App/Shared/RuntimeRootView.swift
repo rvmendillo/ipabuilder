@@ -17,6 +17,21 @@ struct RuntimeRootView: View {
 
     var palette: ThemePalette { ThemePalette(theme: store.project.theme, dark: (preferredScheme ?? systemScheme) == .dark) }
 
+    static func role(_ request: AlertRequest, _ index: Int) -> ButtonRole? {
+        if request.destructiveIndex == index { return .destructive }
+        if request.buttons.count > 1 && index == 0 { return .cancel }
+        return nil
+    }
+
+    var alertShown: Binding<Bool> {
+        Binding(get: { store.alert != nil }, set: { shown in
+            guard !shown else { return }
+            let a = store.alert
+            store.alert = nil
+            a?.resume(0)
+        })
+    }
+
     var body: some View {
         let _ = store.revision
         ZStack {
@@ -33,9 +48,9 @@ struct RuntimeRootView: View {
         .fontDesign(palette.fontDesign)
         .preferredColorScheme(preferredScheme)
         .overlay(alignment: .top) { ToastOverlay(toast: store.toast, palette: palette) }
-        .alert(store.alert?.title ?? "", isPresented: Binding(get: { store.alert != nil }, set: { if !$0 { let a = store.alert; store.alert = nil; a?.resume(0) } }), presenting: store.alert) { request in
+        .alert(store.alert?.title ?? "", isPresented: alertShown, presenting: store.alert) { request in
             ForEach(Array(request.buttons.enumerated()), id: \.offset) { i, title in
-                Button(title, role: request.destructiveIndex == i ? .destructive : (request.buttons.count > 1 && i == 0 ? .cancel : nil)) {
+                Button(title, role: Self.role(request, i)) {
                     store.alert = nil
                     request.resume(i)
                 }

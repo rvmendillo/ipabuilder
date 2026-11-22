@@ -13,6 +13,12 @@ struct LibraryPanel: View {
         return base.filter { $0.category == c }
     }
 
+    var hint: String {
+        guard let node = editor.selectedNode else { return "Tap to add · press and drag onto the canvas" }
+        let place = ComponentRegistry.spec(for: node.type).isContainer ? "inside" : "after"
+        return "Adds \(place) “\(node.displayName)” · press and drag to place"
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             HStack {
@@ -43,7 +49,7 @@ struct LibraryPanel: View {
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
             }
-            Text(editor.selectedNode.map { "Adds \(ComponentRegistry.spec(for: $0.type).isContainer ? "inside" : "after") “\($0.displayName)” · press and drag to place" } ?? "Tap to add · press and drag onto the canvas")
+            Text(hint)
                 .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                 .padding(.bottom, 6)
         }

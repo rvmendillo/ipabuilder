@@ -514,7 +514,7 @@ struct ScreenSettingsSections: View {
                 NavigationLink {
                     ToolbarItemEditor(editor: editor, screenID: screen.id, itemID: item.id)
                 } label: {
-                    Label(item.title.isEmpty ? item.icon : item.title, systemImage: item.icon.isEmpty ? "plus" : item.icon)
+                    Label(item.title.isEmpty ? String(item.icon) : String(item.title), systemImage: item.icon.isEmpty ? String("plus") : String(item.icon))
                 }
             }
             .onDelete { idx in editor.updateScreen(screen.id, label: "Remove Toolbar Item") { $0.toolbar.remove(atOffsets: idx) } }

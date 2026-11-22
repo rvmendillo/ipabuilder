@@ -117,6 +117,10 @@ final class ReyForgeUITests: XCTestCase {
     func testDragFromLibraryOntoCanvas() {
         openBlankProject()
         tap("panel.add")
+        let search = el("library.search")
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("toggle\n")
         let tile = el("library.toggle")
         XCTAssertTrue(tile.waitForExistence(timeout: 5))
         let before = app.switches.count

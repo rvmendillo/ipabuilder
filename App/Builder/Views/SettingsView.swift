@@ -7,18 +7,33 @@ struct SettingsView: View {
     @ObservedObject var settings = AppSettings.shared
     @ObservedObject var updates = UpdateService.shared
 
+    var engineTitle: String { (AIEngineKind(rawValue: settings.aiEngine) ?? AIEngineKind.offline).title }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     NavigationLink { AISettingsView() } label: {
-                        Label { VStack(alignment: .leading) { Text("ReyForge AI"); Text((AIEngineKind(rawValue: settings.aiEngine) ?? .offline).title).font(.caption).foregroundStyle(.secondary) } } icon: { Image(systemName: "sparkles") }
+                        Label {
+                            VStack(alignment: .leading) {
+                                Text("ReyForge AI")
+                                Text(engineTitle).font(.caption).foregroundStyle(.secondary)
+                            }
+                        } icon: { Image(systemName: "sparkles") }
                     }
                     .accessibilityIdentifier("settings.ai")
                     NavigationLink { SigningVaultView() } label: { Label("Signing certificates", systemImage: "signature") }
                         .accessibilityIdentifier("settings.signing")
                     NavigationLink { UpdatesView() } label: {
-                        Label { HStack { Text("Updates"); if updates.updateAvailable { Spacer(); Text("New").font(.caption.bold()).foregroundStyle(.white).padding(.horizontal, 6).background(Capsule().fill(.green)) } } } icon: { Image(systemName: "arrow.down.circle") }
+                        Label {
+                            HStack {
+                                Text("Updates")
+                                if updates.updateAvailable {
+                                    Spacer()
+                                    Text("New").font(.caption.bold()).foregroundStyle(.white).padding(.horizontal, 6).background(Capsule().fill(Color.green))
+                                }
+                            }
+                        } icon: { Image(systemName: "arrow.down.circle") }
                     }
                 }
                 Section("Canvas") {
