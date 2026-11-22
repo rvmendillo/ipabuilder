@@ -25,12 +25,11 @@ struct ScreenView: View {
             .navigationBarTitleDisplayMode(screen.largeTitle ? .large : .inline)
             .toolbar(screen.showsNavigationBar ? .visible : .hidden, for: .navigationBar)
             .toolbar {
-                ForEach(screen.toolbar) { item in
-                    SwiftUI.ToolbarItem(placement: placement(item.placement)) {
-                        ToolbarButton(item: item, scope: scope)
-                    }
-                }
+                ToolbarItemGroup(placement: .topBarLeading) { toolbarButtons(.leading, scope) }
+                ToolbarItemGroup(placement: .topBarTrailing) { toolbarButtons(.trailing, scope) }
+                ToolbarItemGroup(placement: .bottomBar) { toolbarButtons(.bottom, scope) }
             }
+            .toolbar(hasBottomItems ? .visible : .hidden, for: .bottomBar)
             .modifier(SearchableModifier(binding: screen.searchBinding))
             .task(id: screen.id) {
                 if store.mode == .run && !screen.onAppear.isEmpty { await store.runAndWait(screen.onAppear) }
@@ -98,11 +97,11 @@ struct ScreenView: View {
         screen.root.children.first { $0.type == .list }?.string("variant") ?? "insetGrouped"
     }
 
-    func placement(_ p: ScreenToolbarItem.Placement) -> ToolbarItemPlacement {
-        switch p {
-        case .leading: return .topBarLeading
-        case .trailing: return .topBarTrailing
-        case .bottom: return .bottomBar
+    var hasBottomItems: Bool { screen.toolbar.contains { $0.placement == .bottom } }
+
+    @ViewBuilder func toolbarButtons(_ placement: ScreenToolbarItem.Placement, _ scope: Scope) -> some View {
+        ForEach(screen.toolbar.filter { $0.placement == placement }) { item in
+            ToolbarButton(item: item, scope: scope)
         }
     }
 }

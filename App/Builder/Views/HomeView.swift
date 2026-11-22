@@ -52,6 +52,7 @@ struct HomeView: View {
                 NewProjectSheet { template, name, prompt in pendingCreate = (template, name, prompt) }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $settings.showOnboarding) { WelcomeView() }
             .sheet(item: $exportItem) { item in ShareSheet(items: [item.url]) }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.reyforgeProject, .json, .zip, .data], allowsMultipleSelection: false) { result in
                 if case .success(let urls) = result, let url = urls.first { library.handleOpen(url) }
