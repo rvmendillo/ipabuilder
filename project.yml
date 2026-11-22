@@ -20,6 +20,9 @@ settings:
     SUPPORTS_MACCATALYST: "NO"
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: "NO"
+    # llama.cpp static libraries built by scripts/build-llama.sh (device + simulator slices)
+    SWIFT_INCLUDE_PATHS: $(PROJECT_DIR)/Vendor/llama/include
+    HEADER_SEARCH_PATHS: $(PROJECT_DIR)/Vendor/llama/include
 
 packages:
   ReyForgeCore:
@@ -91,7 +94,6 @@ targets:
           - "Resources/Models/**"
       - App/Shared
       - path: Core/Sources/ReyForgeLlama
-        group: AI
       - path: App/Builder/Resources/Models
         type: folder
         buildPhase: resources
@@ -99,9 +101,9 @@ targets:
       - package: ReyForgeCore
       - package: Zsign
         product: Zsign
-      - framework: Vendor/llama.xcframework
-        embed: true
-        codeSign: true
+      - sdk: Metal.framework
+      - sdk: MetalKit.framework
+      - sdk: Accelerate.framework
       - target: ReyForgeRuntime
         embed: false
         link: false
@@ -143,6 +145,9 @@ targets:
       base:
         PRODUCT_NAME: ReyForge
         PRODUCT_BUNDLE_IDENTIFIER: com.rvmendillo.reyforge
+        "LIBRARY_SEARCH_PATHS[sdk=iphoneos*]": $(PROJECT_DIR)/Vendor/llama/ios
+        "LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]": $(PROJECT_DIR)/Vendor/llama/sim
+        OTHER_LDFLAGS: ["$(inherited)", "-lllama", "-lc++"]
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: "YES"
 
