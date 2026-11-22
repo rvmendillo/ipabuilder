@@ -89,7 +89,7 @@ final class DeflateStream {
     func process(_ input: Data, final: Bool, emit: (Data) throws -> Void) throws {
         try input.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
             let src = raw.bindMemory(to: UInt8.self)
-            stream.pointee.src_ptr = UnsafePointer(src.baseAddress ?? emptyInput)
+            stream.pointee.src_ptr = src.baseAddress ?? UnsafePointer(emptyInput)
             stream.pointee.src_size = src.count
             var stalls = 0
             while true {
