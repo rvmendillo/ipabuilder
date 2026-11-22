@@ -14,6 +14,7 @@ struct HomeView: View {
     @State private var deleting: ProjectSummary?
     @State private var exportItem: ExportItem?
     @State private var pendingPrompt: String?
+    @State private var pendingCreate: (AppTemplate?, String, String?)?
 
     struct ExportItem: Identifiable { let id = UUID(); let url: URL }
 
@@ -40,12 +41,15 @@ struct HomeView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationBarHidden(true)
-            .sheet(isPresented: $showNew) {
-                NewProjectSheet { template, name, prompt in
-                    let p = library.create(from: template, name: name)
-                    pendingPrompt = prompt
-                    library.openProject = p
-                }
+            .sheet(isPresented: $showNew, onDismiss: {
+                // Open the editor only after the sheet is gone (presenting during dismissal is dropped).
+                guard let pc = pendingCreate else { return }
+                pendingCreate = nil
+                let p = library.create(from: pc.0, name: pc.1)
+                pendingPrompt = pc.2
+                library.openProject = p
+            }) {
+                NewProjectSheet { template, name, prompt in pendingCreate = (template, name, prompt) }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(item: $exportItem) { item in ShareSheet(items: [item.url]) }

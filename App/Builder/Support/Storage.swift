@@ -1,6 +1,7 @@
 import Foundation
 import Security
 import SwiftUI
+import ReyForgeCore
 
 /// File locations used by the builder. UI tests run against a throwaway folder.
 enum Paths {
@@ -143,8 +144,6 @@ final class AppSettings: ObservableObject {
         showOnboarding = Paths.isUITest ? false : (d.object(forKey: "onboarding.show") as? Bool ?? true)
     }
 }
-
-import ReyForgeCore
 
 /// ReyForge's own brand colors.
 enum RF {

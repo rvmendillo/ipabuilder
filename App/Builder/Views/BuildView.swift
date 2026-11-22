@@ -13,7 +13,7 @@ struct BuildView: View {
     @State private var unsigned = false
     @State private var installing = false
     @State private var installError: String?
-    @State private var shareIPA: URL?
+    @State private var shareItem: ShareURL?
     @State private var showVault = false
 
     var identity: SigningIdentity? { unsigned ? nil : vault.identity(settings.selectedSigningID) ?? vault.identities.first }
@@ -76,7 +76,7 @@ struct BuildView: View {
                 .background(.bar)
                 .accessibilityIdentifier("build.start")
             }
-            .sheet(item: Binding(get: { shareIPA.map { ShareURL(url: $0) } }, set: { shareIPA = $0?.url })) { item in ShareSheet(items: [item.url]) }
+            .sheet(item: $shareItem) { item in ShareSheet(items: [item.url]) }
             .sheet(isPresented: $showVault) { NavigationStack { SigningVaultView() } }
             .alert("Install failed", isPresented: Binding(get: { installError != nil }, set: { if !$0 { installError = nil } })) {
                 Button("OK", role: .cancel) {}
@@ -174,7 +174,7 @@ struct BuildView: View {
                 }
                 .accessibilityIdentifier("build.install")
             }
-            Button { shareIPA = r.ipa } label: { Label("Share IPA…", systemImage: "square.and.arrow.up") }
+            Button { shareItem = ShareURL(url: r.ipa) } label: { Label("Share IPA…", systemImage: "square.and.arrow.up") }
             Text("Saved in Files › On My iPhone › ReyForge › Builds").font(.caption2).foregroundStyle(.secondary)
         } header: { Text("Your app is ready") } footer: {
             if r.signed { Text("Installing uses a localhost server and a public manifest helper (api.palera.in). Keep ReyForge open until the icon appears on your Home Screen.") }

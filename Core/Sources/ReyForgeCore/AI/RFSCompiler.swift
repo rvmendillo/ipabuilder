@@ -456,7 +456,7 @@ public struct RFSCompiler {
         return parts.count == 1 ? .solid(parts[0]) : .linear(parts)
     }
 
-    func dimension(_ raw: String) -> Dimension? {
+    func dimension(_ raw: String) -> SizeDimension? {
         let l = raw.lowercased()
         if ["fill", "full", "max", "infinity", "100%", "stretch"].contains(l) { return .fill }
         if let n = Value.parseNumber(raw), n > 0 { return .fixed(min(n, 2000)) }

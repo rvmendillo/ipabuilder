@@ -438,7 +438,7 @@ struct StyleSections: View {
         } header: { SectionTitle(title: "Typography", symbol: "textformat") }
         Section {
             NumberField(title: "Corner radius", value: style(\.cornerRadius), range: 0...60)
-            Picker("Clip shape", selection: Binding(get: { node.style.clip ?? .none }, set: { v in editor.update(node.id, label: "Edit style") { $0.style.clip = v == .none ? nil : v } })) {
+            Picker("Clip shape", selection: Binding(get: { node.style.clip ?? ClipShape.none }, set: { (v: ClipShape) in editor.update(node.id, label: "Edit style") { $0.style.clip = (v == ClipShape.none) ? nil : v } })) {
                 ForEach(ClipShape.allCases, id: \.self) { Text(PropertyEditor.pretty($0.rawValue)).tag($0) }
             }
             ColorField(title: "Border color", token: style(\.borderColor), palette: palette)

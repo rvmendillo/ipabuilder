@@ -148,7 +148,7 @@ struct NumberField: View {
                 if optional && value != nil {
                     Button("Auto") { value = nil }.font(.caption).buttonStyle(.borderless)
                 }
-                TextField("Auto", value: Binding(get: { value }, set: { value = $0 }), format: .number.precision(.fractionLength(0...2)))
+                TextField("Auto", value: Binding(get: { value ?? 0 }, set: { value = $0 }), format: .number.precision(.fractionLength(0...2)))
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 70)
@@ -163,7 +163,7 @@ struct NumberField: View {
 /// Fixed number or "fill the available space".
 struct DimensionField: View {
     let title: String
-    @Binding var dimension: Dimension?
+    @Binding var dimension: SizeDimension?
     var maxValue: Double = 600
 
     var mode: Binding<Int> {

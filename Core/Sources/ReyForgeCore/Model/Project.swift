@@ -401,7 +401,7 @@ public struct Node: Codable, Identifiable, Hashable {
 
 // MARK: - Style
 
-public enum Dimension: Codable, Hashable {
+public enum SizeDimension: Codable, Hashable {
     case fill
     case fixed(Double)
 
@@ -554,8 +554,8 @@ public enum HAlign: String, Codable, CaseIterable { case leading, center, traili
 public enum ClipShape: String, Codable, CaseIterable { case none, rounded, circle, capsule }
 
 public struct Style: Codable, Hashable {
-    public var width: Dimension?
-    public var height: Dimension?
+    public var width: SizeDimension?
+    public var height: SizeDimension?
     public var minHeight: Double?
     public var maxWidth: Double?
     public var padding: Insets?
@@ -579,7 +579,7 @@ public struct Style: Codable, Hashable {
     public var aspectRatio: Double?
     public var blur: Double?
 
-    public init(width: Dimension? = nil, height: Dimension? = nil, minHeight: Double? = nil, maxWidth: Double? = nil,
+    public init(width: SizeDimension? = nil, height: SizeDimension? = nil, minHeight: Double? = nil, maxWidth: Double? = nil,
                 padding: Insets? = nil, margin: Insets? = nil, alignment: HAlign? = nil, offsetX: Double? = nil, offsetY: Double? = nil,
                 background: Fill? = nil, foreground: String? = nil, font: FontSpec? = nil, cornerRadius: Double? = nil,
                 borderColor: String? = nil, borderWidth: Double? = nil, shadow: ShadowSpec? = nil, opacity: Double? = nil,

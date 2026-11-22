@@ -42,20 +42,27 @@ final class ReyForgeUITests: XCTestCase {
         field.tap()
         field.typeText(name)
         let blank = el("new.template.blank")
-        if !blank.waitForExistence(timeout: 3) { app.swipeUp() }
+        var attempts = 0
+        while !(blank.exists && blank.isHittable) && attempts < 6 {
+            app.swipeUp()
+            attempts += 1
+        }
+        XCTAssertTrue(blank.waitForExistence(timeout: 3), "blank template visible")
         blank.tap()
-        XCTAssertTrue(el("canvas").waitForExistence(timeout: 10), "editor opens")
+        XCTAssertTrue(el("canvas").waitForExistence(timeout: 15), "editor opens")
     }
 
     func addFromLibrary(_ type: String) {
-        if !el("library.\(type)").exists { tap("panel.add") }
+        if !el("library.search").exists { tap("panel.add") }
+        let search = el("library.search")
+        XCTAssertTrue(search.waitForExistence(timeout: 5), "library open")
         let tile = el("library.\(type)")
-        if !tile.waitForExistence(timeout: 3) {
-            let search = el("library.search")
+        if !(tile.exists && tile.isHittable) {
             search.tap()
-            search.typeText(type)
+            search.typeText(type + "\n")
         }
-        tap("library.\(type)")
+        XCTAssertTrue(tile.waitForExistence(timeout: 5), "\(type) tile visible")
+        tile.tap()
     }
 
     // MARK: Tests
@@ -149,12 +156,12 @@ final class ReyForgeUITests: XCTestCase {
         addFromLibrary("button")
         tap("sel.logic")
         let recipe = el("recipe.toast")
-        if !recipe.waitForExistence(timeout: 5) { app.swipeUp() }
+        XCTAssertTrue(recipe.waitForExistence(timeout: 5))
         recipe.tap()
         XCTAssertTrue(el("editor.toast").waitForExistence(timeout: 5))
         shot("11-logic")
         tap("editor.preview")
-        let button = app.buttons["Button"].firstMatch
+        let button = app.buttons["Continue"].firstMatch
         XCTAssertTrue(button.waitForExistence(timeout: 10))
         button.tap()
         XCTAssertTrue(el("toast").waitForExistence(timeout: 5), "logic runs in preview and shows a toast")
@@ -209,7 +216,7 @@ final class ReyForgeUITests: XCTestCase {
         tap("editor.build")
         let unsigned = app.switches["Unsigned IPA (sign elsewhere)"]
         XCTAssertTrue(unsigned.waitForExistence(timeout: 5))
-        if (unsigned.value as? String) != "1" { unsigned.switches.firstMatch.exists ? unsigned.switches.firstMatch.tap() : unsigned.tap() }
+        if (unsigned.value as? String) != "1" { unsigned.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap() }
         tap("build.start")
         XCTAssertTrue(el("build.result").waitForExistence(timeout: 120), "IPA built on device")
         shot("18-build-result")

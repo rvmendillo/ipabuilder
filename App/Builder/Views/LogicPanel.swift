@@ -57,6 +57,27 @@ struct NodeLogicView: View {
                         }
                     }
                 }
+                if node.events.isEmpty {
+                Section {
+                    ForEach(LogicRecipe.all) { recipe in
+                        Button { recipe.apply(editor, nodeID, spec.events.first ?? .tap) } label: {
+                            Label(recipe.title, systemImage: recipe.symbol)
+                        }
+                        .accessibilityIdentifier("recipe.\(recipe.id)")
+                    }
+                } header: {
+                    SectionTitle(title: "Quick logic", symbol: "wand.and.stars")
+                } footer: {
+                    Text("Recipes add ready-made actions (and the variables they need) to \(spec.events.first?.title ?? "On Tap").")
+                }
+                ForEach(spec.events.isEmpty ? [EventKind.tap] : spec.events, id: \.self) { event in
+                    Section {
+                        ActionListEditor(editor: editor, actions: actions(for: event))
+                    } header: {
+                        SectionTitle(title: event.title, symbol: event.symbol)
+                    }
+                }
+                } else {
                 ForEach(spec.events.isEmpty ? [EventKind.tap] : spec.events, id: \.self) { event in
                     Section {
                         ActionListEditor(editor: editor, actions: actions(for: event))
@@ -75,6 +96,7 @@ struct NodeLogicView: View {
                     SectionTitle(title: "Quick logic", symbol: "wand.and.stars")
                 } footer: {
                     Text("Recipes add ready-made actions (and the variables they need) to \(spec.events.first?.title ?? "On Tap").")
+                }
                 }
             }
         }
@@ -378,7 +400,7 @@ struct ParamEditor: View {
             HStack {
                 Text(spec.label)
                 Spacer()
-                TextField(spec.placeholder.isEmpty ? "0" : spec.placeholder, value: Binding(get: { value.numberValue }, set: { value = $0.map { .number($0) } ?? .null }), format: .number)
+                TextField(spec.placeholder.isEmpty ? "0" : spec.placeholder, value: Binding(get: { value.numberValue ?? 0 }, set: { value = .number($0) }), format: .number)
                     .keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 90)
             }
         case .bool:
