@@ -306,7 +306,7 @@ final class AgentTests: XCTestCase {
         let home = projectWithHome()
         let r = await a.respond(to: "show my top goals with progress bars", project: home, context: EditorContext(screenID: home.screens[0].id))
         XCTAssertEqual(nodes(r, screen: "Home").filter { $0.type == .progress }.count, 2)
-        XCTAssertEqual(engine.requests.first?.grammar, Grammars.elements)
+        XCTAssertEqual(engine.requests.first?.grammar, Grammars.elements(allowing: ["PROGRESS", "CARD", "HEADING", "TEXT", "CAPTION", "ICON", "HSTACK", "VSTACK"]))
     }
 
     func testClaudeRequestShape() throws {

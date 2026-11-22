@@ -128,15 +128,39 @@ public enum Prompts {
     """
 
     public static let elementsSystem = """
-    You add native iOS UI elements to an existing screen by writing ReyForge Script. Output 1 to 10 element lines and then END. Never write SCREEN lines. Indent children 2 spaces under containers.
-    Elements: TITLE TEXT HEADING CAPTION BUTTON TOGGLE SLIDER STEPPER PICKER DATE COLOR FIELD SECURE EDITOR SEARCH IMAGE ICON AVATAR BADGE STAT CHART GAUGE PROGRESS RATING MAP LIST ROW CARD HSTACK VSTACK GRID DIVIDER SPACER
-    Keys: bind=var icon=sf.symbol style=prominent color=red height=200 min=0 max=100 value=50. Actions after -> : toast "Done"; inc count; go "Screen"; toggle flag.
+    You add native iOS UI elements to an existing screen by writing ReyForge Script. Output 1 to 10 element lines and then END. Never write SCREEN lines. Indent children 2 spaces under a CARD, HSTACK, VSTACK or LIST. Use only the elements listed in the request, write specific realistic text for the user's topic, and never repeat a line.
+    Keys: bind=var icon=sf.symbol style=prominent color=red height=200 min=0 max=100 value=0.5. Actions after -> : toast "Done"; inc count; go "Screen"; toggle flag.
 
     Request: add a volume slider and a mute toggle
+    Elements to use: SLIDER, TOGGLE
     SLIDER "Volume" bind=volume min=0 max=100 value=60
     TOGGLE "Mute" bind=muted icon=speaker.slash.fill
     END
+
+    Request: show this month's savings targets with progress bars
+    Elements to use: PROGRESS, CARD, HEADING
+    CARD
+      HEADING "Savings targets"
+      PROGRESS "Emergency fund" value=0.8
+      PROGRESS "New laptop" value=0.45
+    END
+
+    Request: add a card explaining our shipping times
+    Elements to use: CARD, HEADING, TEXT
+    CARD
+      HEADING "Shipping"
+      TEXT "Orders ship within 2 business days. Express delivery arrives next day in most cities."
+    END
     """
+
+    /// Keywords for the element types a request mentions (plus text and layout helpers).
+    public static func allowedKeywords(for intent: Intent) -> [String] {
+        let requested = intent.components.map { ComponentRegistry.spec(for: $0.type).rfsKeyword }
+        guard !requested.isEmpty else { return [] }
+        var out: [String] = []
+        for k in requested + ["CARD", "HEADING", "TEXT", "CAPTION", "ICON", "HSTACK", "VSTACK"] where !out.contains(k) { out.append(k) }
+        return out
+    }
 
     public static let editSystem = """
     You change existing elements in an iOS app by writing ReyForge Script EDIT or DELETE lines, then END.
@@ -191,6 +215,13 @@ public enum Grammars {
     root ::= eline eline? eline? eline? eline? eline? eline? eline? eline? eline? "END"
     eline ::= ind comp "\n"
     """# + "\n" + shared
+
+    /// The element grammar restricted to specific keywords (what the user actually asked for).
+    public static func elements(allowing keywords: [String]) -> String {
+        guard !keywords.isEmpty else { return elements }
+        let ckw = "ckw ::= " + keywords.map { "\"\($0)\"" }.joined(separator: " | ")
+        return elements.components(separatedBy: "\n").map { $0.hasPrefix("ckw ::=") ? ckw : $0 }.joined(separator: "\n")
+    }
 
     /// One screen with up to 22 lines, then END.
     public static let screen = #"""

@@ -231,9 +231,13 @@ public final class VibeAgent {
 
     func localElements(_ message: String, project: Project, context: EditorContext, engine: LLMEngine, events: @escaping (AgentEvent) -> Void) async -> String {
         events(.status("Writing elements with \(engine.displayName)"))
-        let request = LLMRequest(system: Prompts.elementsSystem, messages: [
-            LLMMessage(role: "user", content: Prompts.userTurn(message, project: project, context: context, hint: nil))
-        ], grammar: engine.supportsGrammar ? Grammars.elements : nil, maxTokens: 360, temperature: 0.2, stopSequences: ["END"])
+        let intent = RequestAnalyzer.analyze(message, project: project, context: context)
+        let allowed = Prompts.allowedKeywords(for: intent)
+        let screen = context.screenID.flatMap { project.screen(id: $0) }?.name ?? project.initialScreen?.name ?? "Home"
+        var turn = "App \(rq(project.brand.displayName)), screen \(rq(screen)).\nRequest: \(message)"
+        if !allowed.isEmpty { turn += "\nElements to use: " + allowed.prefix(3).joined(separator: ", ") }
+        let request = LLMRequest(system: Prompts.elementsSystem, messages: [LLMMessage(role: "user", content: turn)],
+                                 grammar: engine.supportsGrammar ? Grammars.elements(allowing: allowed) : nil, maxTokens: 360, temperature: 0.2, stopSequences: ["END"])
         guard let raw = try? await engine.generate(request, stream: LLMStream(onText: { events(.scriptDelta($0)) })) else { return "" }
         return Prompts.splitSay(raw).script
     }
@@ -559,7 +563,15 @@ public enum Summarizer {
             let kinds = unique(addedNodes.filter { node in p.parent(of: node.id).map { !result.createdNodeIDs.contains($0.id) } ?? true }
                 .map { ComponentRegistry.spec(for: $0.type).title.lowercased() })
             let screen = result.focusScreenID.flatMap { p.screen(id: $0)?.name } ?? "the screen"
-            opening = kinds.isEmpty ? "Added the elements." : "Added \(listJoin(kinds.prefix(5).map { article($0) + " " + $0 })) to **\(screen)**."
+            let topLevel = addedNodes.filter { node in p.parent(of: node.id).map { !result.createdNodeIDs.contains($0.id) } ?? true }
+            // Name containers by their heading ("Added a Refund Policy card").
+            let described: [String] = topLevel.prefix(5).map { node in
+                let kind = ComponentRegistry.spec(for: node.type).title.lowercased()
+                let heading = node.children.first { [.text, .label].contains($0.type) }.map { $0.string("text").isEmpty ? $0.string("title") : $0.string("text") }
+                    ?? ([.button, .toggle, .slider, .stepper, .picker, .statCard].contains(node.type) ? node.string("title") : "")
+                return heading.isEmpty || heading.contains("{{") ? article(kind) + " " + kind : "\(article(kind)) **\(heading)** \(kind)"
+            }
+            opening = kinds.isEmpty ? "Added the elements." : "Added \(listJoin(described)) to **\(screen)**."
         case .edit:
             let names = result.changes.filter { $0.kind == .updatedNode }.compactMap { $0.nodeID }.compactMap { p.node(id: $0)?.displayName }
             let what = describeEdits(intent)
