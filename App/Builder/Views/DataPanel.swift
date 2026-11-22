@@ -165,7 +165,7 @@ struct VariableEditor: View {
                 .buttonStyle(.borderless)
             }
         case .date:
-            DatePicker("Date", selection: Binding(get: { v.initial.stringValue.date ?? Date() }, set: { d in update { $0.initial = .string(ISO8601DateFormatter().string(from: d)) } }))
+            DatePicker("Date", selection: Binding(get: { v.initial.date ?? Date() }, set: { d in update { $0.initial = .string(ISO8601DateFormatter().string(from: d)) } }))
         case .color:
             ColorField(title: "Color", token: Binding(get: { v.initial.stringValue }, set: { c in update { $0.initial = .string(c ?? "#007AFF") } }), palette: editor.palette, allowsNone: false)
         case .text, .image:

@@ -206,7 +206,7 @@ struct PropertyEditor: View {
                 ForEach(editor.project.screens) { s in Text(s.name).tag(s.id) }
             }
         case .date:
-            DatePicker(spec.label, selection: Binding(get: { value.stringValue.date ?? Date() }, set: { set(.string(ISO8601DateFormatter().string(from: $0))) }))
+            DatePicker(spec.label, selection: Binding(get: { value.date ?? Date() }, set: { set(.string(ISO8601DateFormatter().string(from: $0))) }))
         }
     }
 

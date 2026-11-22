@@ -126,6 +126,7 @@ final class AppSettings: ObservableObject {
     }
 
     private init() {
+        let d = UserDefaults.standard
         if Paths.isUITest {
             for key in ["ai.engine", "ai.localModel", "sign.selected", "onboarding.show"] { d.removeObject(forKey: key) }
         }
