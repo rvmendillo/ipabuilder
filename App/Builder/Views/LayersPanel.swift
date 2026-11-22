@@ -37,7 +37,7 @@ struct LayersPanel: View {
                     HStack {
                         Label(screen.name, systemImage: "iphone")
                         Spacer()
-                        Text("\(all.count - 1) elements").font(.caption)
+                        Text("\(all.count - 1) element\(all.count - 1 == 1 ? "" : "s")").font(.caption)
                     }
                 } footer: {
                     Text("Drag rows to reorder. Swipe for more. Use ⇥ to nest an element inside the container above it.")

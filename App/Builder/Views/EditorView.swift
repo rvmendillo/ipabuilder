@@ -7,6 +7,7 @@ struct EditorView: View {
     @EnvironmentObject var library: ProjectLibrary
     @Environment(\.horizontalSizeClass) var sizeClass
     @Environment(\.dismiss) var dismiss
+    @State private var keyboardVisible = false
     let initialPrompt: String?
 
     init(project: Project, library: ProjectLibrary, initialPrompt: String? = nil) {
@@ -34,12 +35,13 @@ struct EditorView: View {
                     } else {
                         CanvasView(editor: editor)
                             .frame(maxHeight: .infinity)
-                        if editor.selection != nil { SelectionBar(editor: editor) }
+                        // While typing, give the panel the room (the keyboard already covers the bottom).
+                        if editor.selection != nil && !keyboardVisible { SelectionBar(editor: editor) }
                         if let panel = editor.panel {
                             Drawer(editor: editor, panel: panel, maxHeight: geo.size.height * 0.72)
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
-                        PanelPicker(editor: editor, compact: true)
+                        if !keyboardVisible { PanelPicker(editor: editor, compact: true) }
                     }
                 }
                 DragOverlay(editor: editor)
@@ -80,6 +82,8 @@ struct EditorView: View {
             }
         }
         .onDisappear { editor.saveNow() }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardVisible = true }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardVisible = false }
     }
 
     func close() {

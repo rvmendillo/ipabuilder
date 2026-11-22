@@ -55,7 +55,7 @@ final class EditorModel: ObservableObject, DesignHandler {
         didSet { if selection != oldValue { selectionChanged() } }
     }
     @Published var panel: EditorPanel? = nil
-    @Published var drawerHeight: CGFloat = 340
+    @Published var drawerHeight: CGFloat = 380
     @Published var dropIndicator: CGRect?
     @Published var dragGhost: DragGhost?
     @Published var quickEdit: QuickEdit?
