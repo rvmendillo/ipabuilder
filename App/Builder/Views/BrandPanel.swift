@@ -70,11 +70,11 @@ struct BrandPanel: View {
 
     @ViewBuilder var identity: some View {
         Section {
-            TextField("Project name", text: Binding(get: { project.name }, set: { v in editor.mutate("Rename") { $0.name = v } }))
             VStack(alignment: .leading, spacing: 4) {
-                TextField("Home Screen name", text: brand(\.displayName)).accessibilityIdentifier("brand.displayName")
+                TextField("App name on the Home Screen", text: brand(\.displayName)).accessibilityIdentifier("brand.displayName")
                 if let w = project.brand.homeScreenNameWarning { Text(w).font(.caption).foregroundStyle(.orange) }
             }
+            TextField("Project name", text: Binding(get: { project.name }, set: { v in editor.mutate("Rename") { $0.name = v } }))
             TextField("Tagline", text: brand(\.tagline))
             TextField("Copyright", text: brand(\.copyright))
         } header: { SectionTitle(title: "Name", symbol: "textformat") }

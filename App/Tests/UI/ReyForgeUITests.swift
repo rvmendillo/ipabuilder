@@ -37,6 +37,18 @@ final class ReyForgeUITests: XCTestCase {
         return e
     }
 
+    /// Taps the visible element with a label (hidden copies, e.g. the canvas under a preview, are skipped).
+    @MainActor
+    func tapVisible(_ label: String, timeout: TimeInterval = 10) {
+        let query = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label))
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let e = query.allElementsBoundByIndex.first(where: { $0.exists && $0.isHittable }) { e.tap(); return }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        }
+        XCTFail("No visible element labeled \(label)")
+    }
+
     @MainActor
     func anyText(_ text: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label == %@ OR value == %@", text, text)).firstMatch
@@ -215,8 +227,8 @@ final class ReyForgeUITests: XCTestCase {
         XCTAssertTrue(el("ai.reply").waitForExistence(timeout: 60), "AI replies")
         shot("13-ai-reply")
         tap("editor.screenMenu")
-        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 5), "AI created the Settings screen")
-        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.buttons["Settings"].firstMatch.waitForExistence(timeout: 5), "AI created the Settings screen")
+        tapVisible("Settings")
         shot("14-ai-settings-screen")
     }
 
@@ -226,6 +238,7 @@ final class ReyForgeUITests: XCTestCase {
         openBlankProject(named: "Brand Test")
         tap("panel.brand")
         let name = el("brand.displayName")
+        if !name.waitForExistence(timeout: 3) { el("brand.sections").swipeUp() }
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         name.tap()
         name.clearAndType("Brandy")
@@ -242,8 +255,8 @@ final class ReyForgeUITests: XCTestCase {
         field.typeText("Details")
         app.alerts.buttons["Add"].tap()
         tap("editor.screenMenu")
-        XCTAssertTrue(app.buttons["Details"].waitForExistence(timeout: 5))
-        app.tap()
+        XCTAssertTrue(app.buttons["Details"].firstMatch.waitForExistence(timeout: 5))
+        tapVisible("Details")
         tap("panel.layers")
         shot("17-layers")
     }
@@ -263,10 +276,11 @@ final class ReyForgeUITests: XCTestCase {
 }
 
 extension XCUIElement {
+    /// Replaces the text of a field: puts the cursor at the end, deletes everything, types.
     @MainActor
     func clearAndType(_ text: String) {
-        tap()
-        if let current = value as? String, !current.isEmpty {
+        coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.85)).tap()
+        if let current = value as? String, !current.isEmpty, current != placeholderValue {
             let delete = String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 4)
             typeText(delete)
         }

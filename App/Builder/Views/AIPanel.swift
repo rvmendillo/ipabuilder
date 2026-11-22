@@ -205,8 +205,8 @@ struct ChatBubble: View {
                 if !turn.highlights.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(turn.highlights, id: \.self) { h in
-                            Label(h, systemImage: "checkmark.circle.fill").font(.caption).foregroundStyle(.primary)
-                                .symbolRenderingMode(.multicolor)
+                            Label { Text(LocalizedStringKey(h)) } icon: { Image(systemName: "checkmark.circle.fill").symbolRenderingMode(.multicolor) }
+                                .font(.caption)
                         }
                     }
                 }

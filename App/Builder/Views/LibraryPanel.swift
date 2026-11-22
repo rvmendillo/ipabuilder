@@ -15,8 +15,9 @@ struct LibraryPanel: View {
 
     var hint: String {
         guard let node = editor.selectedNode else { return "Tap to add · press and drag onto the canvas" }
-        let place = ComponentRegistry.spec(for: node.type).isContainer ? "inside" : "after"
-        return "Adds \(place) “\(node.displayName)” · press and drag to place"
+        let spec = ComponentRegistry.spec(for: node.type)
+        let place = spec.isContainer ? "inside the selected" : "after the selected"
+        return "Adds \(place) \(spec.title.lowercased()) · press and drag to place"
     }
 
     var body: some View {

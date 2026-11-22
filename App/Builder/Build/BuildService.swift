@@ -63,15 +63,6 @@ final class BuildService: ObservableObject {
     /// Signs an .app folder with zsign (must not run on the main thread).
     nonisolated static func sign(app: URL, identity: SigningIdentity, workDir: URL) throws {
         let fm = FileManager.default
-        // zsign only writes embedded.mobileprovision when the profile's App ID equals the bundle ID,
-        // so wildcard profiles would produce uninstallable apps: embed it ourselves (app + extensions)
-        // before signing so it is sealed into the code signature.
-        let profile = try Data(contentsOf: identity.profileURL)
-        try profile.write(to: app.appendingPathComponent("embedded.mobileprovision"))
-        let plugins = app.appendingPathComponent("PlugIns")
-        for ext in (try? fm.contentsOfDirectory(at: plugins, includingPropertiesForKeys: nil)) ?? [] where ext.pathExtension == "appex" {
-            try profile.write(to: ext.appendingPathComponent("embedded.mobileprovision"))
-        }
         let previous = fm.currentDirectoryPath
         // zsign keeps a small cache in the working directory.
         fm.changeCurrentDirectoryPath(workDir.path)
@@ -82,6 +73,16 @@ final class BuildService: ObservableObject {
                             customVersion: "", adhoc: false, removeProvision: false) { success in callbackOK = success }
         guard ok && callbackOK else {
             throw VaultError("Signing failed. Check that the certificate password is right and that the profile matches the certificate.")
+        }
+        // zsign deletes any embedded.mobileprovision and re-adds it only when the profile's App ID
+        // equals the bundle ID (it skips wildcard profiles). Add it the same way for every bundle.
+        let profile = try Data(contentsOf: identity.profileURL)
+        var bundles = [app]
+        let plugins = app.appendingPathComponent("PlugIns")
+        bundles += ((try? fm.contentsOfDirectory(at: plugins, includingPropertiesForKeys: nil)) ?? []).filter { $0.pathExtension == "appex" }
+        for b in bundles {
+            let dest = b.appendingPathComponent("embedded.mobileprovision")
+            if !fm.fileExists(atPath: dest.path) { try profile.write(to: dest) }
         }
     }
 
