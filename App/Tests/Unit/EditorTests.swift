@@ -5,11 +5,7 @@ import ReyForgeCore
 
 @MainActor
 final class EditorTests: XCTestCase {
-    var library: ProjectLibrary!
-
-    override func setUp() async throws {
-        library = ProjectLibrary()
-    }
+    lazy var library = ProjectLibrary()
 
     func makeEditor(_ template: String = "blank") -> EditorModel {
         let p = library.create(from: Templates.template(template), name: "Editor \(template) \(UUID().uuidString.prefix(4))")

@@ -337,7 +337,7 @@ struct LinesEditor: View {
         }
         .onAppear {
             text = lines.joined(separator: "\n")
-            DispatchQueue.main.async { loaded = true }
+            Task { @MainActor in loaded = true }
         }
     }
 }

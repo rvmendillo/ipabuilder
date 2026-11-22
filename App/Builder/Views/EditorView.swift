@@ -72,7 +72,11 @@ struct EditorView: View {
         .onAppear {
             if let p = initialPrompt, !p.isEmpty {
                 editor.panel = .ai
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { editor.chat.send(p) }
+                let chat = editor.chat
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    chat.send(p)
+                }
             }
         }
         .onDisappear { editor.saveNow() }

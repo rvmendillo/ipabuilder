@@ -442,6 +442,7 @@ final class EditorModel: ObservableObject, DesignHandler {
     }
 }
 
+@MainActor
 enum Haptics {
     static func selection() {
         #if os(iOS)

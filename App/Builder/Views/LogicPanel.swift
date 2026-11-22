@@ -110,7 +110,7 @@ struct LogicRecipe: Identifiable {
     let symbol: String
     let build: (inout Project) -> [Action]
 
-    func apply(_ editor: EditorModel, _ nodeID: String, _ event: EventKind) {
+    @MainActor func apply(_ editor: EditorModel, _ nodeID: String, _ event: EventKind) {
         editor.mutate("Add \(title)") { p in
             let actions = build(&p)
             p.updateNode(nodeID) { n in for a in actions { n.addAction(a, on: event) } }

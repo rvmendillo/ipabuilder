@@ -4,8 +4,12 @@ import XCTest
 final class ReyForgeUITests: XCTestCase {
     var app: XCUIApplication!
 
-    override func setUp() {
+    override func setUpWithError() throws {
         continueAfterFailure = false
+    }
+
+    @MainActor
+    func launch() {
         app = XCUIApplication()
         app.launchArguments = ["-uitest"]
         app.launch()
@@ -13,6 +17,7 @@ final class ReyForgeUITests: XCTestCase {
 
     // MARK: Helpers
 
+    @MainActor
     func shot(_ name: String) {
         let a = XCTAttachment(screenshot: app.screenshot())
         a.name = name
@@ -20,8 +25,10 @@ final class ReyForgeUITests: XCTestCase {
         add(a)
     }
 
+    @MainActor
     func el(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id].firstMatch }
 
+    @MainActor
     @discardableResult
     func tap(_ id: String, timeout: TimeInterval = 10) -> XCUIElement {
         let e = el(id)
@@ -30,11 +37,13 @@ final class ReyForgeUITests: XCTestCase {
         return e
     }
 
+    @MainActor
     func anyText(_ text: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label == %@ OR value == %@", text, text)).firstMatch
     }
 
     /// Creates a blank project and opens the editor.
+    @MainActor
     func openBlankProject(named name: String = "UITest App") {
         tap("home.new")
         let field = el("new.name")
@@ -52,6 +61,7 @@ final class ReyForgeUITests: XCTestCase {
         XCTAssertTrue(el("canvas").waitForExistence(timeout: 15), "editor opens")
     }
 
+    @MainActor
     func addFromLibrary(_ type: String) {
         if !el("library.search").exists { tap("panel.add") }
         let search = el("library.search")
@@ -67,7 +77,9 @@ final class ReyForgeUITests: XCTestCase {
 
     // MARK: Tests
 
+    @MainActor
     func testHomeAndTemplateGallery() {
+        launch()
         XCTAssertTrue(el("home.new").waitForExistence(timeout: 10))
         shot("01-home")
         tap("home.new")
@@ -81,7 +93,9 @@ final class ReyForgeUITests: XCTestCase {
         app.tap() // dismiss menu
     }
 
+    @MainActor
     func testAddEditUndoRedo() {
+        launch()
         openBlankProject()
         addFromLibrary("button")
         XCTAssertTrue(el("sel.text").waitForExistence(timeout: 5), "new element is selected")
@@ -98,7 +112,9 @@ final class ReyForgeUITests: XCTestCase {
         XCTAssertTrue(anyText("Tap me UI").waitForExistence(timeout: 5))
     }
 
+    @MainActor
     func testInspectorPropertiesAndStyle() {
+        launch()
         openBlankProject()
         addFromLibrary("text")
         tap("sel.inspect")
@@ -114,7 +130,9 @@ final class ReyForgeUITests: XCTestCase {
         shot("07-inspector-layout")
     }
 
+    @MainActor
     func testDragFromLibraryOntoCanvas() {
+        launch()
         openBlankProject()
         tap("panel.add")
         let search = el("library.search")
@@ -132,7 +150,9 @@ final class ReyForgeUITests: XCTestCase {
         shot("08-dragged-toggle")
     }
 
+    @MainActor
     func testMoveHandleReordersElements() {
+        launch()
         openBlankProject()
         addFromLibrary("toggle")
         tap("drawer.close")
@@ -155,7 +175,9 @@ final class ReyForgeUITests: XCTestCase {
         shot("10-reordered")
     }
 
+    @MainActor
     func testLogicRecipeAndLivePreview() {
+        launch()
         openBlankProject()
         addFromLibrary("button")
         tap("sel.logic")
@@ -173,7 +195,9 @@ final class ReyForgeUITests: XCTestCase {
         tap("preview.close")
     }
 
+    @MainActor
     func testVibeCodingWithAI() {
+        launch()
         openBlankProject(named: "AI Test")
         tap("panel.ai")
         let input = el("ai.input")
@@ -189,7 +213,9 @@ final class ReyForgeUITests: XCTestCase {
         shot("14-ai-settings-screen")
     }
 
+    @MainActor
     func testBrandStudioAndScreens() {
+        launch()
         openBlankProject(named: "Brand Test")
         tap("panel.brand")
         let name = el("brand.displayName")
@@ -215,7 +241,9 @@ final class ReyForgeUITests: XCTestCase {
         shot("17-layers")
     }
 
+    @MainActor
     func testBuildUnsignedIPAOnDevice() {
+        launch()
         openBlankProject(named: "Build Test")
         tap("editor.build")
         let unsigned = app.switches["Unsigned IPA (sign elsewhere)"]
@@ -228,6 +256,7 @@ final class ReyForgeUITests: XCTestCase {
 }
 
 extension XCUIElement {
+    @MainActor
     func clearAndType(_ text: String) {
         tap()
         if let current = value as? String, !current.isEmpty {
