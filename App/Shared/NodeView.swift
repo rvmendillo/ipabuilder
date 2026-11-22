@@ -7,6 +7,13 @@ import ReyForgeCore
 protocol DesignHandler: AnyObject {
     func select(_ nodeID: String)
     func contextActions(for nodeID: String) -> [DesignMenuAction]
+    /// Rendered frame of a node in global coordinates (drop targeting, overlays).
+    func reportFrame(_ nodeID: String, _ frame: CGRect)
+    /// Dragging the move handle of the selected node (global coordinates).
+    func moveChanged(_ nodeID: String, location: CGPoint, translation: CGSize, freeLayout: Bool)
+    func moveEnded(_ nodeID: String, location: CGPoint, translation: CGSize, freeLayout: Bool)
+    /// Dragging the resize handle; size is the new rendered size in points.
+    func resizeEnded(_ nodeID: String, size: CGSize)
 }
 
 struct DesignMenuAction: Identifiable {
@@ -20,6 +27,8 @@ struct DesignMenuAction: Identifiable {
 private struct DesignHandlerKey: EnvironmentKey { static let defaultValue: DesignHandler? = nil }
 private struct PaletteKey: EnvironmentKey { static let defaultValue = ThemePalette(theme: Theme(), dark: false) }
 private struct InListKey: EnvironmentKey { static let defaultValue = false }
+private struct SelectedNodeKey: EnvironmentKey { static let defaultValue: String? = nil }
+private struct InFreeLayoutKey: EnvironmentKey { static let defaultValue = false }
 
 extension EnvironmentValues {
     var designHandler: DesignHandler? {
@@ -34,6 +43,16 @@ extension EnvironmentValues {
     var inNativeList: Bool {
         get { self[InListKey.self] }
         set { self[InListKey.self] = newValue }
+    }
+    /// The node selected in the builder canvas (draws selection chrome and handles).
+    var selectedNodeID: String? {
+        get { self[SelectedNodeKey.self] }
+        set { self[SelectedNodeKey.self] = newValue }
+    }
+    /// True for direct children of a free layout (ZStack): dragging moves them by offset.
+    var inFreeLayout: Bool {
+        get { self[InFreeLayoutKey.self] }
+        set { self[InFreeLayoutKey.self] = newValue }
     }
 }
 
@@ -70,6 +89,7 @@ struct NodeView: View {
     @ViewBuilder var content: some View {
         if ComponentRegistry.spec(for: node.type).isContainer {
             ContainerView(node: node, scope: scope)
+                .environment(\.inFreeLayout, false)
         } else {
             LeafView(node: node, scope: scope)
                 .allowsHitTesting(store.mode == .run)
@@ -85,9 +105,22 @@ struct ChildrenView: View {
 
     var body: some View {
         if let items = store.items(for: node, scope: scope) {
-            ForEach(Array(items.enumerated()), id: \.offset) { pair in
-                let s = scope.with(["item": pair.element, "index": .number(Double(pair.offset))])
-                ForEach(node.children) { child in NodeView(node: child, scope: s) }
+            if items.isEmpty && store.mode == .design {
+                // Keep the row template visible (and editable) while the list is empty.
+                let s = scope.with(["item": .object([:]), "index": .number(0)])
+                ForEach(node.children) { child in NodeView(node: child, scope: s).opacity(0.55) }
+            } else {
+                ForEach(Array(items.enumerated()), id: \.offset) { pair in
+                    let s = scope.with(["item": pair.element, "index": .number(Double(pair.offset))])
+                    ForEach(node.children) { child in
+                        if store.mode == .design && pair.offset > 0 {
+                            // Only the first repetition is editable; the rest preview the data.
+                            NodeView(node: child, scope: s).environment(\.designHandler, nil).allowsHitTesting(false)
+                        } else {
+                            NodeView(node: child, scope: s)
+                        }
+                    }
+                }
             }
         } else {
             ForEach(node.children) { child in NodeView(node: child, scope: scope) }
@@ -231,12 +264,14 @@ struct NodeEvents: ViewModifier {
     }
 }
 
-/// In design mode: tap to select, long-press menu, and frame reporting for the canvas overlay.
+/// In design mode: tap to select, long-press menu, frame reporting and selection handles.
 struct DesignChrome: ViewModifier {
     let node: Node
     let enabled: Bool
     let isContainer: Bool
     @Environment(\.designHandler) var design
+    @Environment(\.selectedNodeID) var selectedID
+    @Environment(\.inFreeLayout) var inFreeLayout
 
     func body(content: Content) -> some View {
         if enabled, let design = design {
@@ -249,10 +284,88 @@ struct DesignChrome: ViewModifier {
                     Button(role: a.destructive ? .destructive : nil) { a.run() } label: { Label(a.title, systemImage: a.symbol) }
                 }
             }
-            .transformAnchorPreference(key: NodeBoundsKey.self, value: .bounds) { dict, anchor in dict[node.id] = anchor }
+            .overlay {
+                if selectedID == node.id {
+                    SelectionChrome(node: node, design: design, freeLayout: inFreeLayout)
+                }
+            }
+            .onGeometryChange(for: CGRect.self) { proxy in proxy.frame(in: .global) } action: { frame in
+                design.reportFrame(node.id, frame)
+            }
             .accessibilityIdentifier("node.\(node.id)")
         } else {
             content
+        }
+    }
+}
+
+/// Selection outline with a move handle (drag to reorder / reposition) and a resize handle.
+struct SelectionChrome: View {
+    let node: Node
+    let design: DesignHandler
+    let freeLayout: Bool
+    @State private var moveOffset: CGSize = .zero
+    @State private var resizeDelta: CGSize = .zero
+
+    var body: some View {
+        GeometryReader { geo in
+            let size = geo.size
+            ZStack(alignment: .topLeading) {
+                Rectangle()
+                    .strokeBorder(Color.accentColor, lineWidth: 2)
+                    .background(Color.accentColor.opacity(moveOffset == .zero ? 0.06 : 0.14))
+                    .frame(width: max(8, size.width + resizeDelta.width), height: max(8, size.height + resizeDelta.height))
+                    .offset(moveOffset)
+                    .allowsHitTesting(false)
+                Text(resizeDelta == .zero ? node.displayName : "\(Int(max(8, size.width + resizeDelta.width))) × \(Int(max(8, size.height + resizeDelta.height)))")
+                    .font(.system(size: 10, weight: .semibold))
+                    .lineLimit(1)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Color.accentColor, in: Capsule())
+                    .foregroundStyle(.white)
+                    .fixedSize()
+                    .offset(x: 16 + moveOffset.width, y: -20 + moveOffset.height)
+                    .allowsHitTesting(false)
+                Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(Color.accentColor))
+                    .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+                    .contentShape(Circle().inset(by: -8))
+                    .offset(x: -14 + moveOffset.width, y: -14 + moveOffset.height)
+                    .gesture(
+                        DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                            .onChanged { v in
+                                moveOffset = v.translation
+                                design.moveChanged(node.id, location: v.location, translation: v.translation, freeLayout: freeLayout)
+                            }
+                            .onEnded { v in
+                                moveOffset = .zero
+                                design.moveEnded(node.id, location: v.location, translation: v.translation, freeLayout: freeLayout)
+                            }
+                    )
+                    .accessibilityLabel("Move \(node.displayName)")
+                    .accessibilityIdentifier("handle.move")
+                Circle()
+                    .fill(Color.white)
+                    .overlay(Circle().stroke(Color.accentColor, lineWidth: 2.5))
+                    .frame(width: 22, height: 22)
+                    .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+                    .contentShape(Circle().inset(by: -8))
+                    .position(x: size.width + resizeDelta.width, y: size.height + resizeDelta.height)
+                    .gesture(
+                        DragGesture(minimumDistance: 1)
+                            .onChanged { v in resizeDelta = v.translation }
+                            .onEnded { v in
+                                let newSize = CGSize(width: max(8, size.width + v.translation.width), height: max(8, size.height + v.translation.height))
+                                resizeDelta = .zero
+                                design.resizeEnded(node.id, size: newSize)
+                            }
+                    )
+                    .accessibilityLabel("Resize \(node.displayName)")
+                    .accessibilityIdentifier("handle.resize")
+            }
         }
     }
 }

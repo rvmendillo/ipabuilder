@@ -71,6 +71,7 @@ struct FreeLayoutView: View {
             Color.clear
             ForEach(node.children) { child in
                 NodeView(node: child, scope: scope)
+                    .environment(\.inFreeLayout, true)
                     .fixedSize(horizontal: child.style.width == nil, vertical: child.style.height == nil)
                     .offset(x: CGFloat(child.style.offsetX ?? 0), y: CGFloat(child.style.offsetY ?? 0))
             }
