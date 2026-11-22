@@ -63,6 +63,15 @@ final class BuildService: ObservableObject {
     /// Signs an .app folder with zsign (must not run on the main thread).
     nonisolated static func sign(app: URL, identity: SigningIdentity, workDir: URL) throws {
         let fm = FileManager.default
+        // zsign only writes embedded.mobileprovision when the profile's App ID equals the bundle ID,
+        // so wildcard profiles would produce uninstallable apps: embed it ourselves (app + extensions)
+        // before signing so it is sealed into the code signature.
+        let profile = try Data(contentsOf: identity.profileURL)
+        try profile.write(to: app.appendingPathComponent("embedded.mobileprovision"))
+        let plugins = app.appendingPathComponent("PlugIns")
+        for ext in (try? fm.contentsOfDirectory(at: plugins, includingPropertiesForKeys: nil)) ?? [] where ext.pathExtension == "appex" {
+            try profile.write(to: ext.appendingPathComponent("embedded.mobileprovision"))
+        }
         let previous = fm.currentDirectoryPath
         // zsign keeps a small cache in the working directory.
         fm.changeCurrentDirectoryPath(workDir.path)

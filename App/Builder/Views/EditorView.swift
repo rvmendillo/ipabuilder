@@ -189,28 +189,37 @@ struct PanelPicker: View {
     let compact: Bool
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: compact ? 2 : 6) {
-                ForEach(EditorPanel.allCases) { p in
-                    Button {
-                        if compact && editor.panel == p { editor.panel = nil } else { editor.panel = p }
-                    } label: {
-                        VStack(spacing: 3) {
-                            Image(systemName: p.symbol).font(.system(size: 18, weight: .medium))
-                            Text(p.title).font(.system(size: 10, weight: .semibold))
-                        }
-                        .frame(width: 54, height: 44)
-                        .foregroundStyle(editor.panel == p ? Color.white : Color.primary)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(editor.panel == p ? AnyShapeStyle(RF.gradient) : AnyShapeStyle(Color.clear)))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("panel.\(p.rawValue)")
+        HStack(spacing: compact ? 2 : 6) {
+            ForEach(EditorPanel.allCases) { p in
+                PanelButton(panel: p, selected: editor.panel == p) {
+                    if compact && editor.panel == p { editor.panel = nil } else { editor.panel = p }
                 }
             }
-            .padding(.horizontal, 8)
         }
+        .padding(.horizontal, 6)
         .padding(.vertical, 6)
         .background(.bar)
+    }
+}
+
+struct PanelButton: View {
+    let panel: EditorPanel
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: panel.symbol).font(.system(size: 17, weight: .medium))
+                Text(panel.title).font(.system(size: 10, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .foregroundStyle(selected ? Color.white : Color.primary)
+            .background(RoundedRectangle(cornerRadius: 10).fill(selected ? AnyShapeStyle(RF.gradient) : AnyShapeStyle(Color.clear)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("panel.\(panel.rawValue)")
     }
 }
 

@@ -26,7 +26,7 @@ final class OnDeviceAITests: XCTestCase {
         let engine = try loadedEngine()
         let request = LLMRequest(system: Prompts.contentSystem,
                                  messages: [LLMMessage(role: "user", content: "Topic: beekeeping club. Give a title, subtitle and 3 short items.")],
-                                 grammar: Grammars.content, maxTokens: 220, temperature: 0.2)
+                                 grammar: Grammars.content, maxTokens: 1200, temperature: 0.2)
         var streamed = ""
         let text = try await engine.generate(request, stream: LLMStream(onText: { streamed += $0 }))
         XCTAssertFalse(text.isEmpty)

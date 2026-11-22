@@ -33,6 +33,10 @@ struct CanvasView: View {
                 CanvasBackdrop()
                     .contentShape(Rectangle())
                     .onTapGesture { editor.selection = nil }
+                    // A standalone element (identifiers on containers would override their children's).
+                    .accessibilityElement()
+                    .accessibilityLabel("Canvas")
+                    .accessibilityIdentifier("canvas")
                 VStack(spacing: 0) {
                     if let screen = editor.currentScreen {
                         NavigationStack {
@@ -55,7 +59,6 @@ struct CanvasView: View {
                 .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(Color.primary.opacity(0.18), lineWidth: 1.5))
                 .shadow(color: .black.opacity(0.15), radius: 14, y: 6)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { editor.canvasFrame = $0 }
-                .accessibilityIdentifier("canvas")
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }

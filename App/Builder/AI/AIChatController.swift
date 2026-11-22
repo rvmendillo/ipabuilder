@@ -61,9 +61,11 @@ final class AIChatController: ObservableObject {
             }
             self.engine = engine
             let agent = VibeAgent(engine: engine)
-            let result = await agent.respond(to: message, project: project, context: context, history: history) { [weak self] event in
+            // Agent events arrive on background threads (model streaming): hop to the main queue in order.
+            let onEvent: @Sendable (AgentEvent) -> Void = { [weak self] event in
                 DispatchQueue.main.async { MainActor.assumeIsolated { self?.handle(event) } }
             }
+            let result = await agent.respond(to: message, project: project, context: context, history: history, events: onEvent)
             // Let queued stream events land before finishing.
             await Task.yield()
             DispatchQueue.main.async { MainActor.assumeIsolated { self.finish(result, request: message) } }

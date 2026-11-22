@@ -49,7 +49,7 @@ final class ReyForgeUITests: XCTestCase {
         let field = el("new.name")
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
-        field.typeText(name)
+        field.typeText(name + "\n") // Return hides the keyboard so the templates are tappable
         let blank = el("new.template.blank")
         var attempts = 0
         while !(blank.exists && blank.isHittable) && attempts < 6 {
@@ -187,9 +187,16 @@ final class ReyForgeUITests: XCTestCase {
         XCTAssertTrue(el("editor.toast").waitForExistence(timeout: 5))
         shot("11-logic")
         tap("editor.preview")
-        let button = app.buttons["Continue"].firstMatch
-        XCTAssertTrue(button.waitForExistence(timeout: 10))
-        button.tap()
+        // The editor canvas stays in the hierarchy under the preview: use the visible (hittable) button.
+        let buttons = app.buttons.matching(NSPredicate(format: "label == 'Continue'"))
+        var previewButton: XCUIElement?
+        let deadline = Date().addingTimeInterval(15)
+        while previewButton == nil && Date() < deadline {
+            previewButton = buttons.allElementsBoundByIndex.first { $0.exists && $0.isHittable }
+            if previewButton == nil { RunLoop.current.run(until: Date().addingTimeInterval(0.5)) }
+        }
+        XCTAssertNotNil(previewButton, "preview shows the button")
+        previewButton?.tap()
         XCTAssertTrue(el("toast").waitForExistence(timeout: 5), "logic runs in preview and shows a toast")
         shot("12-preview-toast")
         tap("preview.close")

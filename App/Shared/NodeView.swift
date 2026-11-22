@@ -286,7 +286,9 @@ struct DesignChrome: ViewModifier {
         if enabled, let design = design {
             let target = Color.clear.contentShape(Rectangle()).onTapGesture { design.select(node.id) }
             Group {
-                if isContainer { content.background(target) } else { content.overlay(target) }
+                // Only leaves get an identifier: on containers SwiftUI applies it to every descendant,
+                // which would hide the children's (and the selection handles') own identifiers.
+                if isContainer { content.background(target) } else { content.overlay(target).accessibilityIdentifier("node.\(node.id)") }
             }
             .contextMenu {
                 ForEach(design.contextActions(for: node.id)) { a in
@@ -301,7 +303,6 @@ struct DesignChrome: ViewModifier {
             .onGeometryChange(for: CGRect.self) { proxy in proxy.frame(in: .global) } action: { frame in
                 design.reportFrame(node.id, frame)
             }
-            .accessibilityIdentifier("node.\(node.id)")
         } else {
             content
         }
@@ -354,7 +355,9 @@ struct SelectionChrome: View {
                                 design.moveEnded(node.id, location: v.location, translation: v.translation, freeLayout: freeLayout)
                             }
                     )
+                    .accessibilityElement()
                     .accessibilityLabel("Move \(node.displayName)")
+                    .accessibilityAddTraits(.isButton)
                     .accessibilityIdentifier("handle.move")
                 Circle()
                     .fill(Color.white)
@@ -372,7 +375,9 @@ struct SelectionChrome: View {
                                 design.resizeEnded(node.id, size: newSize)
                             }
                     )
+                    .accessibilityElement()
                     .accessibilityLabel("Resize \(node.displayName)")
+                    .accessibilityAddTraits(.isButton)
                     .accessibilityIdentifier("handle.resize")
             }
         }

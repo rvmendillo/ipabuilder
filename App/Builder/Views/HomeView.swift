@@ -292,6 +292,7 @@ struct NewProjectSheet: View {
                 }
                 .padding(16)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Color(.systemGroupedBackground))
             .navigationTitle("New App")
             .navigationBarTitleDisplayMode(.inline)
