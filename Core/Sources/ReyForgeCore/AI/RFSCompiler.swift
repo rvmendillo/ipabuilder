@@ -1132,10 +1132,10 @@ public struct RFSCompiler {
 
     mutating func addToolbarItem(_ line: RFSLine) {
         let si = ensureScreen()
-        var item = ToolbarItem()
+        var item = ScreenToolbarItem()
         item.title = line.positional.first ?? line.attributes["title"] ?? ""
         item.icon = SymbolResolver.resolve(line.attributes["icon"] ?? (item.title.isEmpty ? "plus" : ""), fallback: item.title.isEmpty ? "plus" : "")
-        if let p = line.attributes["placement"], let pl = ToolbarItem.Placement(rawValue: p.lowercased()) { item.placement = pl }
+        if let p = line.attributes["placement"], let pl = ScreenToolbarItem.Placement(rawValue: p.lowercased()) { item.placement = pl }
         else if line.flags.contains("leading") { item.placement = .leading } else if line.flags.contains("bottom") { item.placement = .bottom }
         if let a = line.actions { item.actions = compileActions(a) }
         project.screens[si].toolbar.append(item)

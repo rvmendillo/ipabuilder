@@ -100,7 +100,7 @@ struct ScreenView: View {
         screen.root.children.first { $0.type == .list }?.string("variant") ?? "insetGrouped"
     }
 
-    func placement(_ p: ToolbarItem.Placement) -> ToolbarItemPlacement {
+    func placement(_ p: ScreenToolbarItem.Placement) -> ToolbarItemPlacement {
         switch p {
         case .leading: return .topBarLeading
         case .trailing: return .topBarTrailing

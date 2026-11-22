@@ -118,7 +118,7 @@ targets:
           mkdir -p "$DEST_DIR"
           rm -f "$DEST_DIR/RuntimeTemplate.zip"
           cd "${BUILT_PRODUCTS_DIR}"
-          /usr/bin/ditto -c -k --norsrc --keepParent "ReyForgeRuntime.app" "$DEST_DIR/RuntimeTemplate.zip"
+          /usr/bin/ditto -c -k --norsrc --noextattr --noqtn --keepParent "ReyForgeRuntime.app" "$DEST_DIR/RuntimeTemplate.zip"
           echo "Embedded runtime template: $(du -h "$DEST_DIR/RuntimeTemplate.zip" | cut -f1)"
     info:
       path: App/Builder/Info.plist
@@ -141,6 +141,16 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.rvmendillo.reyforge
             CFBundleURLSchemes: [reyforge]
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.rvmendillo.reyforge.project
+            UTTypeDescription: ReyForge Project
+            UTTypeConformsTo: [public.zip-archive, public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [reyforge]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: ReyForge Project
+            LSHandlerRank: Owner
+            LSItemContentTypes: [com.rvmendillo.reyforge.project]
     settings:
       base:
         PRODUCT_NAME: ReyForge

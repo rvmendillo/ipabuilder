@@ -199,7 +199,7 @@ public struct Screen: Codable, Identifiable, Hashable {
     public var background: Fill?
     public var root: Node
     public var onAppear: [Action]
-    public var toolbar: [ToolbarItem]
+    public var toolbar: [ScreenToolbarItem]
     public var searchBinding: String?
     public var refreshActions: [Action]
     public var notes: String
@@ -207,7 +207,7 @@ public struct Screen: Codable, Identifiable, Hashable {
     public init(id: String = IDGen.short("s"), name: String, title: String? = nil, icon: String = "square.grid.2x2",
                 showsNavigationBar: Bool = true, largeTitle: Bool = true, scrolls: Bool = true,
                 background: Fill? = nil, root: Node? = nil, children: [Node] = [], onAppear: [Action] = [],
-                toolbar: [ToolbarItem] = [], searchBinding: String? = nil, refreshActions: [Action] = []) {
+                toolbar: [ScreenToolbarItem] = [], searchBinding: String? = nil, refreshActions: [Action] = []) {
         self.id = id
         self.name = name
         self.title = title ?? name
@@ -249,7 +249,7 @@ public struct Screen: Codable, Identifiable, Hashable {
     }
 }
 
-public struct ToolbarItem: Codable, Hashable, Identifiable {
+public struct ScreenToolbarItem: Codable, Hashable, Identifiable {
     public enum Placement: String, Codable, CaseIterable { case leading, trailing, bottom }
     public var id: String
     public var placement: Placement
