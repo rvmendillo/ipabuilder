@@ -33,7 +33,9 @@ ReyForge assembles, signs (with your own certificate) and installs real IPAs on 
    | `SIGNING_PROFILE_BASE64` | `base64 -i profile.mobileprovision` |
    | `SIGNING_BUNDLE_ID` | optional, e.g. `com.you.reyforge` (defaults to your explicit profile's App ID) |
 
-3. Once ReyForge is installed, add your certificate in **Settings › Signing certificates**. From then on updates install from **Settings › Updates** with one tap (download → re-sign on device → install).
+3. Optional one-tap install page: with the signing secrets set, enable **Settings › Pages › Source: GitHub Actions** and each
+   release also deploys a page with `itms-services` install links — open it in Safari on your iPhone.
+4. Once ReyForge is installed, add your certificate in **Settings › Signing certificates**. From then on updates install from **Settings › Updates** with one tap (download → re-sign on device → install).
 
 ## Build an app on device
 
@@ -80,6 +82,18 @@ cd Core && swift test                               # core tests (also run on Li
 
 CI (`.github/workflows/build.yml`) runs core tests on Linux and macOS, builds the app, runs unit and UI tests on the
 iOS Simulator (screenshots are uploaded as artifacts), packages full and lite IPAs, optionally signs them, and publishes releases.
+
+What the tests cover:
+
+- **Core (96 tests, Linux + macOS):** project model and migration, expressions and the logic runner, ReyForge Script,
+  the AI request analyzer / design engine / agent, templates, drag-and-drop planning, ZIP, provisioning parsing, IPA assembly.
+- **App unit tests (21, iOS Simulator):** embedded runtime template, icon rendering, unsigned IPA build, zsign signing with
+  an imported certificate + profile, wrong-password rejection, ZIP certificate import, localhost installer (full + ranged
+  downloads), editor add/edit/undo/redo/drag/resize/free layout/library drop/script console/import-export, runtime
+  navigation and feedback, and the built-in Qwen3.5 model generating grammar-constrained JSON and UI elements via llama.cpp.
+- **UI tests (9, iOS Simulator):** template gallery, add and edit elements, inspector, drag from the library onto the canvas,
+  move handles, logic recipes running in Preview, vibe coding a new screen with AI, Brand Studio and screens, and building
+  an IPA on device.
 
 ## Licenses
 
