@@ -24,7 +24,7 @@ build_slice() { # name sysroot metal
     -DLLAMA_BUILD_TOOLS=OFF -DLLAMA_BUILD_SERVER=OFF -DLLAMA_CURL=OFF \
     -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF -DGGML_METAL="$metal" -DGGML_METAL_EMBED_LIBRARY="$metal" \
     -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=Apple > "$WORK/cmake-$name.log" 2>&1 || { tail -n 60 "$WORK/cmake-$name.log"; exit 1; }
-  cmake --build "$out" --config Release -j "$JOBS" > "$WORK/build-$name.log" 2>&1 || { grep -E "error" -A3 "$WORK/build-$name.log" | head -n 80; exit 1; }
+  cmake --build "$out" --config Release --target llama -j "$JOBS" > "$WORK/build-$name.log" 2>&1 || { grep -E "error" -A3 "$WORK/build-$name.log" | head -n 80; exit 1; }
   mkdir -p "$DEST/$name"
   # shellcheck disable=SC2046
   libtool -static -o "$DEST/$name/libllama.a" $(find "$out" -name '*.a' | sort)
